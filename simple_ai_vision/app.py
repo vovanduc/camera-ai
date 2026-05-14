@@ -11,7 +11,6 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
 
-SUPERVISOR_OPTIONS_PATH = "/data/options.json"
 UI_OPTIONS_PATH = "/data/simple_ai_vision_config.json"
 DEFAULT_PROMPT = (
     "B\u1ea1n \u0111ang ph\u00e2n t\u00edch \u1ea3nh camera an ninh.\n"
@@ -545,12 +544,11 @@ def default_options() -> dict[str, Any]:
 def read_options() -> dict[str, Any]:
     options = default_options()
 
-    for path in (SUPERVISOR_OPTIONS_PATH, UI_OPTIONS_PATH):
-        if os.path.exists(path):
-            with open(path, "r", encoding="utf-8") as file:
-                data = json.load(file)
-            if isinstance(data, dict):
-                options.update(data)
+    if os.path.exists(UI_OPTIONS_PATH):
+        with open(UI_OPTIONS_PATH, "r", encoding="utf-8") as file:
+            data = json.load(file)
+        if isinstance(data, dict):
+            options.update(data)
 
     normalize_options(options)
     return options

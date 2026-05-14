@@ -42,6 +42,8 @@ https://github.com/minhhungtsbd/my_hass_addon_public
 8. Cài đặt rồi bấm **Start**.
 9. Mở tab **Open Web UI** để chỉnh cấu hình và thêm camera.
 
+Add-on này dùng Web UI làm nơi cấu hình chính. Tab Configuration của Home Assistant không cần điền gì.
+
 ## Yêu Cầu
 
 - Home Assistant OS hoặc Supervised có Add-on Store.
