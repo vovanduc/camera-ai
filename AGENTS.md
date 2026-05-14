@@ -198,6 +198,12 @@ Avoid distro-specific assumptions.
 
 ---
 
+## GitHub Updates
+
+After each source code update, commit the changes and push them to GitHub.
+
+---
+
 ## Final Goal
 
 A lightweight production-ready AI snapshot notifier for Home Assistant using go2rtc and AI Vision APIs.

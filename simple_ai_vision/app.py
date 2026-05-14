@@ -8,7 +8,7 @@ from typing import Any
 
 import requests
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 
 
 UI_OPTIONS_PATH = "/data/simple_ai_vision_config.json"
@@ -77,6 +77,26 @@ INDEX_HTML = r"""
       padding: 18px;
       margin-bottom: 16px;
     }
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      border-bottom: 1px solid var(--line);
+    }
+    .tab-btn {
+      border: 0;
+      border-bottom: 3px solid transparent;
+      border-radius: 0;
+      background: transparent;
+      color: var(--muted);
+      padding: 10px 12px;
+    }
+    .tab-btn.active {
+      border-bottom-color: var(--primary);
+      color: var(--text);
+    }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
     .grid {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -137,9 +157,48 @@ INDEX_HTML = r"""
     }
     .camera-row {
       display: grid;
-      grid-template-columns: 1fr auto auto;
+      grid-template-columns: minmax(160px, 1fr) auto auto auto auto;
       gap: 8px;
       margin-bottom: 8px;
+    }
+    .viewer {
+      border: 0;
+      padding: 0;
+      background: transparent;
+      width: min(920px, calc(100vw - 28px));
+    }
+    .viewer::backdrop { background: rgba(0, 0, 0, .62); }
+    .viewer-box {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+    }
+    .viewer-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .viewer-title {
+      font-weight: 750;
+      overflow-wrap: anywhere;
+    }
+    .viewer-body {
+      min-height: 260px;
+      background: #05080c;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .viewer-body img,
+    .viewer-body iframe {
+      display: block;
+      width: 100%;
+      height: min(68vh, 560px);
+      border: 0;
+      object-fit: contain;
+      background: #05080c;
     }
     .status {
       min-height: 22px;
@@ -159,6 +218,7 @@ INDEX_HTML = r"""
       main { padding: 16px; }
       header { align-items: flex-start; flex-direction: column; }
       .grid, .camera-row { grid-template-columns: 1fr; }
+      .tabs { overflow-x: auto; }
     }
   </style>
 </head>
@@ -172,7 +232,12 @@ INDEX_HTML = r"""
       <button class="secondary" id="reloadBtn" type="button">Reload</button>
     </header>
 
-    <section class="panel">
+    <nav class="tabs" aria-label="Main views">
+      <button class="tab-btn active" data-tab="camerasPanel" type="button">Cameras</button>
+      <button class="tab-btn" data-tab="settingsPanel" type="button">Core Settings</button>
+    </nav>
+
+    <section class="panel tab-panel" id="settingsPanel">
       <h2>Core Settings</h2>
       <div class="grid">
         <div>
@@ -237,7 +302,7 @@ cháy"></textarea>
       </div>
     </section>
 
-    <section class="panel">
+    <section class="panel tab-panel active" id="camerasPanel">
       <h2>Cameras</h2>
       <div class="hint">Nhập đúng tên stream trong go2rtc, ví dụ <code>bep</code>. Addon sẽ gọi <code>{go2rtc_url}/api/frame.jpeg?src=bep</code>.</div>
       <div id="cameraList"></div>
@@ -251,6 +316,19 @@ cháy"></textarea>
       <h2>Last Test Result</h2>
       <pre id="result">{}</pre>
     </section>
+
+    <dialog class="viewer" id="viewerDialog">
+      <div class="viewer-box">
+        <div class="viewer-head">
+          <div class="viewer-title" id="viewerTitle">Camera</div>
+          <div class="actions">
+            <button class="secondary" id="openViewerBtn" type="button">Open Tab</button>
+            <button class="secondary" id="closeViewerBtn" type="button">Close</button>
+          </div>
+        </div>
+        <div class="viewer-body" id="viewerBody"></div>
+      </div>
+    </dialog>
   </main>
 
   <script>
@@ -260,12 +338,28 @@ cháy"></textarea>
       "ai_timeout", "snapshot_timeout", "telegram_timeout"
     ];
     let cameras = [];
+    let currentViewerUrl = "";
 
     function apiPath(path) {
       const base = window.location.pathname.endsWith("/")
         ? window.location.pathname
         : window.location.pathname + "/";
       return base + path.replace(/^\/+/, "");
+    }
+
+    function setActiveTab(panelId) {
+      document.querySelectorAll(".tab-panel").forEach(panel => {
+        panel.classList.toggle("active", panel.id === panelId);
+      });
+      document.querySelectorAll(".tab-btn").forEach(button => {
+        button.classList.toggle("active", button.dataset.tab === panelId);
+      });
+    }
+
+    function buildGo2rtcUrl(camera, path, params = {}) {
+      const base = document.getElementById("go2rtc_url").value.trim().replace(/\/+$/, "");
+      const query = new URLSearchParams({src: camera, ...params});
+      return `${base}${path}?${query.toString()}`;
     }
 
     async function requestJson(path, options = {}, timeoutMs = 45000) {
@@ -343,6 +437,18 @@ cháy"></textarea>
         test.textContent = "Test";
         test.addEventListener("click", () => testCamera(input.value));
 
+        const snapshot = document.createElement("button");
+        snapshot.className = "secondary";
+        snapshot.type = "button";
+        snapshot.textContent = "Snapshot";
+        snapshot.addEventListener("click", () => viewSnapshot(input.value));
+
+        const video = document.createElement("button");
+        video.className = "secondary";
+        video.type = "button";
+        video.textContent = "Video";
+        video.addEventListener("click", () => viewVideo(input.value));
+
         const remove = document.createElement("button");
         remove.className = "danger";
         remove.type = "button";
@@ -352,9 +458,48 @@ cháy"></textarea>
           renderCameras();
         });
 
-        row.append(input, test, remove);
+        row.append(input, snapshot, video, test, remove);
         list.append(row);
       });
+    }
+
+    function cameraNameOrError(camera) {
+      const name = (camera || "").trim();
+      if (!name) {
+        document.getElementById("result").textContent = "Camera name is required.";
+        return "";
+      }
+      return name;
+    }
+
+    function showViewer(title, content, openUrl) {
+      currentViewerUrl = openUrl || "";
+      document.getElementById("viewerTitle").textContent = title;
+      const body = document.getElementById("viewerBody");
+      body.innerHTML = "";
+      body.append(content);
+      document.getElementById("openViewerBtn").style.display = currentViewerUrl ? "" : "none";
+      document.getElementById("viewerDialog").showModal();
+    }
+
+    function viewSnapshot(camera) {
+      const name = cameraNameOrError(camera);
+      if (!name) return;
+      const img = document.createElement("img");
+      img.alt = `Snapshot ${name}`;
+      img.src = apiPath(`api/camera/frame?camera=${encodeURIComponent(name)}&_=${Date.now()}`);
+      showViewer(`Snapshot: ${name}`, img, img.src);
+    }
+
+    function viewVideo(camera) {
+      const name = cameraNameOrError(camera);
+      if (!name) return;
+      const url = buildGo2rtcUrl(name, "/stream.html", {mode: "mse"});
+      const frame = document.createElement("iframe");
+      frame.src = url;
+      frame.title = `Video ${name}`;
+      frame.allow = "autoplay; fullscreen; picture-in-picture";
+      showViewer(`Video: ${name}`, frame, url);
     }
 
     async function loadConfig() {
@@ -408,11 +553,8 @@ cháy"></textarea>
     }
 
     async function testCamera(camera) {
-      const name = (camera || "").trim();
-      if (!name) {
-        document.getElementById("result").textContent = "Camera name is required.";
-        return;
-      }
+      const name = cameraNameOrError(camera);
+      if (!name) return;
       document.getElementById("result").textContent = "Running camera test...";
       try {
         const {data} = await requestJson("analyze", {
@@ -453,12 +595,22 @@ cháy"></textarea>
     }
 
     document.getElementById("reloadBtn").addEventListener("click", loadConfig);
+    document.querySelectorAll(".tab-btn").forEach(button => {
+      button.addEventListener("click", () => setActiveTab(button.dataset.tab));
+    });
     document.getElementById("saveBtn").addEventListener("click", saveConfig);
     document.getElementById("testAiBtn").addEventListener("click", testAiApi);
     document.getElementById("saveCamerasBtn").addEventListener("click", saveConfig);
     document.getElementById("addCameraBtn").addEventListener("click", () => {
       cameras.push("");
       renderCameras();
+    });
+    document.getElementById("closeViewerBtn").addEventListener("click", () => {
+      document.getElementById("viewerDialog").close();
+      document.getElementById("viewerBody").innerHTML = "";
+    });
+    document.getElementById("openViewerBtn").addEventListener("click", () => {
+      if (currentViewerUrl) window.open(currentViewerUrl, "_blank", "noopener");
     });
     loadConfig();
   </script>
@@ -895,6 +1047,40 @@ def get_config() -> JSONResponse:
     except (OSError, json.JSONDecodeError) as exc:
         logger.error("Could not read config: %s", exc)
         return error_response("could not read config", 500)
+
+
+@app.get("/api/camera/frame")
+def camera_frame(camera: str) -> Response:
+    snapshot_path = None
+    try:
+        options = read_options()
+        if not str(options.get("go2rtc_url", "")).strip():
+            return error_response("go2rtc_url is required", 400)
+
+        camera_name = validate_camera(camera)
+        snapshot_path = fetch_snapshot(camera_name, options)
+        with open(snapshot_path, "rb") as file:
+            content = file.read()
+
+        return Response(
+            content=content,
+            media_type="image/jpeg",
+            headers={"Cache-Control": "no-store"},
+        )
+    except ValueError as exc:
+        logger.error("%s", exc)
+        return error_response(str(exc), 400)
+    except requests.Timeout:
+        logger.error("Snapshot preview timeout")
+        return JSONResponse({"success": False, "error": "snapshot timeout"})
+    except requests.HTTPError as exc:
+        logger.error("Snapshot preview HTTP error: %s", exc)
+        return upstream_error_response(exc)
+    except requests.RequestException as exc:
+        logger.error("Snapshot preview network error: %s", exc)
+        return JSONResponse({"success": False, "error": "snapshot network error", "details": str(exc)})
+    finally:
+        cleanup_file(snapshot_path)
 
 
 @app.post("/api/config")
