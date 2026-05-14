@@ -27,11 +27,16 @@ https://github.com/minhhungtsbd/my_hass_addon_public
 ```
 
 5. Cài add-on **Simple AI Vision**.
-6. Mở tab **Configuration** và điền options.
-7. Bấm **Start**.
-8. Bấm **Open Web UI** để chỉnh cấu hình, thêm camera và test nhanh.
+6. Bấm **Start**.
+7. Bấm **Open Web UI** để chỉnh cấu hình, thêm camera và test nhanh.
 
 ## Cấu Hình
+
+Tab **Configuration** của Home Assistant được giữ trống để add-on gọn hơn. Toàn bộ cấu hình vận hành được nhập trong **Open Web UI** và lưu tại:
+
+```text
+/data/simple_ai_vision_config.json
+```
 
 ```yaml
 go2rtc_url: "http://homeassistant.local:1984"

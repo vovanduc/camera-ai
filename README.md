@@ -39,7 +39,7 @@ https://github.com/minhhungtsbd/my_hass_addon_public
 
 6. Bấm **Add**.
 7. Tìm add-on **Simple AI Vision** trong Add-on Store.
-8. Cài đặt, cấu hình options, rồi bấm **Start**.
+8. Cài đặt rồi bấm **Start**.
 9. Mở tab **Open Web UI** để chỉnh cấu hình và thêm camera.
 
 ## Yêu Cầu

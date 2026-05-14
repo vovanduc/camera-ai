@@ -576,7 +576,7 @@ def save_options(options: dict[str, Any]) -> dict[str, Any]:
     current = read_options()
     current = merge_user_options(current, options)
     normalize_options(current)
-    validate_options(current)
+    validate_saved_options(current)
 
     os.makedirs(os.path.dirname(UI_OPTIONS_PATH), exist_ok=True)
     tmp_path = f"{UI_OPTIONS_PATH}.tmp"
@@ -610,19 +610,7 @@ def normalize_options(options: dict[str, Any]) -> None:
             options[key] = 1
 
 
-def validate_options(options: dict[str, Any]) -> None:
-    required = [
-        "go2rtc_url",
-        "ai_api_key",
-        "ai_base_url",
-        "ai_model",
-        "telegram_bot_token",
-        "telegram_chat_id",
-    ]
-    missing = [key for key in required if not str(options.get(key, "")).strip()]
-    if missing:
-        raise ValueError(f"Missing required option(s): {', '.join(missing)}")
-
+def validate_saved_options(options: dict[str, Any]) -> None:
     if not isinstance(options.get("keyword_match"), list):
         raise ValueError("keyword_match must be a list")
 
@@ -639,6 +627,22 @@ def validate_options(options: dict[str, Any]) -> None:
             raise ValueError(f"{key} must be an integer") from exc
         if options[key] < 1:
             raise ValueError(f"{key} must be greater than 0")
+
+
+def validate_options(options: dict[str, Any]) -> None:
+    required = [
+        "go2rtc_url",
+        "ai_api_key",
+        "ai_base_url",
+        "ai_model",
+        "telegram_bot_token",
+        "telegram_chat_id",
+    ]
+    missing = [key for key in required if not str(options.get(key, "")).strip()]
+    if missing:
+        raise ValueError(f"Missing required option(s): {', '.join(missing)}")
+
+    validate_saved_options(options)
 
 
 def validate_ai_options(options: dict[str, Any]) -> None:
