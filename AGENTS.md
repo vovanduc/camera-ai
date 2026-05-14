@@ -201,6 +201,7 @@ Avoid distro-specific assumptions.
 ## GitHub Updates
 
 After each source code update, commit the changes and push them to GitHub.
+Increase the add-on version in `simple_ai_vision/config.yaml` for every update.
 
 ---
 
