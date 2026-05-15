@@ -120,12 +120,14 @@ Không commit file `.env` hoặc `data/config.json` vì có thể chứa token/A
 
 Các tab chính:
 
-- **Dashboard**: Start/Stop monitor, capture snapshot, xem snapshot mới nhất.
+- **Dashboard**: Start/Stop monitor, xem tổng quan camera, go2rtc public URL, AI model và recent events.
 - **Cameras**: thêm nhiều camera RTSP, bật/tắt từng camera, xem snapshot/video và test AI từng camera.
 - **Live**: xem nhiều camera cùng lúc bằng MJPEG proxy từ RTSP.
 - **Settings**: cấu hình RTSP, AI, YOLO, Telegram và timeout/cooldown.
 - **Events**: log các trạng thái `started`, `verified`, `telegram_sent`, `ai_error`, `rtsp_reconnect`.
 - **Tools**: test AI bằng snapshot mới nhất, upload ảnh test AI, test Telegram.
+
+Các tab có hash URL riêng, ví dụ `#cameras`, `#live`, `#events`. Khi reload trang, UI sẽ giữ lại tab đang mở.
 
 Mỗi event `verified`, `test_ai`, `test_ai_camera`, `test_ai_upload` lưu thêm trường `ai_raw`, là nội dung text AI trả về sau khi parse response từ 9Router/OpenAI-compatible gateway.
 

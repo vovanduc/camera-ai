@@ -250,6 +250,24 @@ INDEX_HTML = r"""
       background: var(--panel-2);
     }
     .card b { display: block; font-size: 18px; margin-top: 4px; }
+    .summary-list {
+      display: grid;
+      gap: 8px;
+    }
+    .summary-item {
+      display: grid;
+      grid-template-columns: minmax(120px, .5fr) minmax(0, 1fr);
+      gap: 10px;
+      border-bottom: 1px solid var(--line);
+      padding: 8px 0;
+    }
+    .summary-item:last-child {
+      border-bottom: 0;
+    }
+    .summary-item span {
+      color: var(--muted);
+      font-weight: 700;
+    }
     .camera-head,
     .camera-row {
       display: grid;
@@ -380,6 +398,7 @@ INDEX_HTML = r"""
       main { padding: 14px; }
       header { flex-direction: column; }
       .grid, .cards { grid-template-columns: 1fr; }
+      .summary-item { grid-template-columns: 1fr; }
       .camera-head { display: none; }
       .camera-row {
         grid-template-columns: 1fr;
@@ -425,7 +444,7 @@ INDEX_HTML = r"""
         <div class="card"><span>Frames</span><b id="frames">0</b></div>
         <div class="card"><span>Person conf</span><b id="personConf">0</b></div>
         <div class="card"><span>AI result</span><b id="aiResult">-</b></div>
-        <div class="card"><span>Last verify</span><b id="lastVerify">-</b></div>
+        <div class="card"><span>Enabled cameras</span><b id="enabledCameraCount">0</b></div>
       </div>
       <div class="panel">
         <h2>Monitor</h2>
@@ -438,8 +457,22 @@ INDEX_HTML = r"""
         </div>
       </div>
       <div class="panel">
-        <h2>Latest Snapshot</h2>
-        <img id="snapshotImg" class="preview" alt="Latest snapshot">
+        <h2>System Overview</h2>
+        <div class="summary-list">
+          <div class="summary-item"><span>Last camera</span><div id="lastCamera">-</div></div>
+          <div class="summary-item"><span>Last verify</span><div id="lastVerify">-</div></div>
+          <div class="summary-item"><span>Last alert</span><div id="lastAlert">-</div></div>
+          <div class="summary-item"><span>go2rtc public URL</span><div id="dashboardGo2rtc">-</div></div>
+          <div class="summary-item"><span>AI model</span><div id="dashboardModel">-</div></div>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>Camera Sources</h2>
+        <div id="dashboardCameras" class="summary-list"></div>
+      </div>
+      <div class="panel">
+        <h2>Recent Events</h2>
+        <div id="dashboardEvents" class="summary-list"></div>
       </div>
     </section>
 
@@ -563,7 +596,7 @@ INDEX_HTML = r"""
       <div class="panel">
         <h2>Tools</h2>
         <div class="actions">
-          <button id="testAiBtn" type="button">Test AI With Latest Snapshot</button>
+          <button id="testAiBtn" type="button">Test AI With Last Snapshot</button>
           <button id="testTelegramBtn" type="button">Test Telegram</button>
           <span id="toolStatus"></span>
         </div>
@@ -595,6 +628,8 @@ INDEX_HTML = r"""
     let cameras = [];
     let currentViewerUrl = "";
     let currentViewerMode = "";
+    let latestEvents = [];
+    let latestStatus = {};
     const numericIds = ["confidence", "verify_interval", "alert_cooldown", "frame_skip", "loop_sleep"];
     const configIds = [
       "rtsp_url", "go2rtc_url", "ai_base_url", "ai_api_key", "vision_model", "verify_prompt", "yolo_model",
@@ -627,6 +662,8 @@ INDEX_HTML = r"""
       document.querySelectorAll(".tab-panel").forEach(panel => panel.classList.add("hidden"));
       document.getElementById(id).classList.remove("hidden");
       document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.toggle("active", btn.dataset.tab === id));
+      const tabName = id.replace("Panel", "");
+      if (location.hash !== `#${tabName}`) history.replaceState(null, "", `#${tabName}`);
     }
     function collectConfig() {
       const data = {};
@@ -644,9 +681,11 @@ INDEX_HTML = r"""
       cameras = Array.isArray(config.cameras) ? config.cameras : [];
       renderCameras();
       renderLive();
+      renderDashboard();
     }
     function renderStatus(data) {
       const s = data.status || {};
+      latestStatus = s;
       const dot = document.getElementById("runDot");
       dot.className = "dot" + (s.running ? " running" : "") + (s.last_error ? " error" : "");
       setText("runText", s.running ? "Running" : "Stopped");
@@ -654,11 +693,13 @@ INDEX_HTML = r"""
       setText("personConf", s.last_person_confidence ? Number(s.last_person_confidence).toFixed(2) : "0");
       setText("aiResult", s.last_ai_result ? `${s.last_ai_result} ${s.last_camera ? "(" + s.last_camera + ")" : ""}` : "-");
       setText("lastVerify", s.last_verify_at || "-");
+      setText("lastCamera", s.last_camera || "-");
+      setText("lastAlert", s.last_alert_at || "-");
       if (s.last_error) setStatus("actionStatus", s.last_error, "err");
-      const img = document.getElementById("snapshotImg");
-      img.src = "/api/snapshot?ts=" + Date.now();
+      renderDashboard();
     }
     function renderEvents(events) {
+      latestEvents = events;
       const body = document.getElementById("eventsBody");
       body.innerHTML = "";
       for (const event of events) {
@@ -678,6 +719,53 @@ INDEX_HTML = r"""
         body.append(row);
       }
       setStatus("eventsStatus", `Loaded ${events.length} events`, "ok");
+      renderDashboard();
+    }
+    function renderDashboard() {
+      const enabled = cameras.map(normalizeCamera).filter(camera => camera.enabled);
+      setText("enabledCameraCount", enabled.length);
+      setText("dashboardGo2rtc", document.getElementById("go2rtc_url").value.trim() || "-");
+      setText("dashboardModel", document.getElementById("vision_model").value.trim() || "-");
+
+      const cameraList = document.getElementById("dashboardCameras");
+      cameraList.innerHTML = "";
+      if (!cameras.length) {
+        const empty = document.createElement("div");
+        empty.className = "summary-item";
+        empty.innerHTML = "<span>Status</span><div>No cameras configured</div>";
+        cameraList.append(empty);
+      } else {
+        cameras.map(normalizeCamera).forEach(camera => {
+          const row = document.createElement("div");
+          row.className = "summary-item";
+          const label = document.createElement("span");
+          label.textContent = camera.name || camera.go2rtc_src || "Camera";
+          const value = document.createElement("div");
+          const live = cameraLiveUrl(camera);
+          value.textContent = `${camera.enabled ? "Enabled" : "Disabled"} | go2rtc src: ${camera.go2rtc_src || "-"} | live: ${live || "Python fallback"} | rtsp: ${camera.rtsp_url || "-"}`;
+          row.append(label, value);
+          cameraList.append(row);
+        });
+      }
+
+      const eventList = document.getElementById("dashboardEvents");
+      eventList.innerHTML = "";
+      for (const event of latestEvents.slice(0, 5)) {
+        const row = document.createElement("div");
+        row.className = "summary-item";
+        const label = document.createElement("span");
+        label.textContent = event.time || "";
+        const value = document.createElement("div");
+        value.textContent = `${event.status || ""}${event.camera ? " | " + event.camera : ""}${event.ai_result ? " | " + event.ai_result : ""}${event.error ? " | " + event.error : ""}`;
+        row.append(label, value);
+        eventList.append(row);
+      }
+      if (!latestEvents.length) {
+        const empty = document.createElement("div");
+        empty.className = "summary-item";
+        empty.innerHTML = "<span>Status</span><div>No events yet</div>";
+        eventList.append(empty);
+      }
     }
     function showViewer(title, url, mode) {
       currentViewerUrl = url;
@@ -728,6 +816,11 @@ INDEX_HTML = r"""
         live_url: camera.live_url || ""
       };
     }
+    function streamNameFromRtsp(rtspUrl) {
+      const clean = (rtspUrl || "").trim().split("?")[0].replace(/\/$/, "");
+      const parts = clean.split("/");
+      return parts[parts.length - 1] || "";
+    }
     function go2rtcStreamUrl(src) {
       const base = document.getElementById("go2rtc_url").value.trim().replace(/\/$/, "");
       if (!base || !src) return "";
@@ -743,6 +836,14 @@ INDEX_HTML = r"""
       const direct = cameraLiveUrl(camera);
       if (direct) return {url: direct, mode: "iframe"};
       return {url: `/api/camera/video?index=${index}`, mode: "video"};
+    }
+    function cameraSnapshotSource(camera, index) {
+      const item = normalizeCamera(camera);
+      const base = document.getElementById("go2rtc_url").value.trim().replace(/\/$/, "");
+      if (base && item.go2rtc_src.trim()) {
+        return `${base}/api/frame.jpeg?src=${encodeURIComponent(item.go2rtc_src.trim())}`;
+      }
+      return `/api/camera/snapshot?index=${index}`;
     }
     function renderCameras() {
       const list = document.getElementById("cameraList");
@@ -760,12 +861,31 @@ INDEX_HTML = r"""
         const name = document.createElement("input");
         name.placeholder = "bep";
         name.value = camera.name;
-        name.addEventListener("input", () => cameras[index].name = name.value);
+        name.addEventListener("input", () => {
+          cameras[index].name = name.value;
+          if (!cameras[index].go2rtc_src) {
+            cameras[index].go2rtc_src = name.value.trim();
+            go2rtcSrc.value = cameras[index].go2rtc_src;
+          }
+        });
 
         const rtsp = document.createElement("input");
         rtsp.placeholder = "rtsp://10.10.0.2:8554/bep_sub";
         rtsp.value = camera.rtsp_url;
-        rtsp.addEventListener("input", () => cameras[index].rtsp_url = rtsp.value);
+        rtsp.addEventListener("input", () => {
+          cameras[index].rtsp_url = rtsp.value;
+          const streamName = streamNameFromRtsp(rtsp.value);
+          if (streamName) {
+            if (!cameras[index].name) {
+              cameras[index].name = streamName;
+              name.value = streamName;
+            }
+            if (!cameras[index].go2rtc_src) {
+              cameras[index].go2rtc_src = streamName;
+              go2rtcSrc.value = streamName;
+            }
+          }
+        });
 
         const go2rtcSrc = document.createElement("input");
         go2rtcSrc.placeholder = "bep";
@@ -784,7 +904,7 @@ INDEX_HTML = r"""
         snapshot.textContent = "Snapshot";
         snapshot.addEventListener("click", () => showViewer(
           `Snapshot: ${camera.name || "Camera " + (index + 1)}`,
-          `/api/camera/snapshot?index=${index}`,
+          cameraSnapshotSource(cameras[index], index),
           "snapshot"
         ));
         const video = document.createElement("button");
@@ -902,9 +1022,12 @@ INDEX_HTML = r"""
     });
     document.getElementById("refreshStatusBtn").addEventListener("click", loadStatus);
     document.getElementById("addCameraBtn").addEventListener("click", () => {
-      cameras.push({enabled: true, name: "", rtsp_url: document.getElementById("rtsp_url").value.trim()});
+      const rtspUrl = document.getElementById("rtsp_url").value.trim();
+      const streamName = streamNameFromRtsp(rtspUrl);
+      cameras.push({enabled: true, name: streamName, rtsp_url: rtspUrl, go2rtc_src: streamName, live_url: ""});
       renderCameras();
       renderLive();
+      renderDashboard();
     });
     document.getElementById("saveCamerasBtn").addEventListener("click", async () => {
       try {
@@ -968,6 +1091,8 @@ INDEX_HTML = r"""
     loadConfig().catch(err => setStatus("configStatus", err.message, "err"));
     loadStatus().catch(() => {});
     loadEvents().catch(() => {});
+    const initialTab = `${(location.hash || "#dashboard").slice(1)}Panel`;
+    if (document.getElementById(initialTab)) showTab(initialTab);
     setInterval(loadStatus, 5000);
     setInterval(loadEvents, 15000);
   </script>
