@@ -29,6 +29,26 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "ai_base_url": "https://9router.minhhungtsbd.me/v1",
     "ai_api_key": "",
     "vision_model": "gh/oswe-vscode-prime",
+    "verify_prompt": """Đây là ảnh camera giám sát người già trong nhà.
+
+Hãy xác định:
+- Người có bị té ngã không
+- Người có đang gặp nguy hiểm không
+- Người có đang nằm dưới đất bất thường không
+- Người có đang cần trợ giúp không
+- Người có đang cố đứng dậy nhưng thất bại không
+
+Nếu nguy hiểm trả lời:
+EMERGENCY
+
+Nếu bình thường trả lời:
+SAFE
+
+Chỉ trả lời đúng 1 từ:
+SAFE
+hoặc
+EMERGENCY
+""",
     "yolo_model": "yolov8s.pt",
     "confidence": 0.5,
     "verify_interval": 20,
@@ -58,27 +78,6 @@ SECRET_CONFIG_KEYS = {
     "telegram_chat_id",
     "ai_api_key",
 }
-
-PROMPT = """Đây là ảnh camera giám sát người già trong nhà.
-
-Hãy xác định:
-- Người có bị té ngã không
-- Người có đang gặp nguy hiểm không
-- Người có đang nằm dưới đất bất thường không
-- Người có đang cần trợ giúp không
-- Người có đang cố đứng dậy nhưng thất bại không
-
-Nếu nguy hiểm trả lời:
-EMERGENCY
-
-Nếu bình thường trả lời:
-SAFE
-
-Chỉ trả lời đúng 1 từ:
-SAFE
-hoặc
-EMERGENCY
-"""
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("fall_detection_web")
@@ -436,6 +435,10 @@ INDEX_HTML = r"""
             <label for="vision_model">AI Model</label>
             <input id="vision_model" autocomplete="off" placeholder="gh/oswe-vscode-prime">
           </div>
+          <div class="full">
+            <label for="verify_prompt">AI Verify Prompt</label>
+            <textarea id="verify_prompt" placeholder="Prompt xác minh té ngã gửi tới AI"></textarea>
+          </div>
           <div>
             <label for="ai_api_key">AI API Key</label>
             <input id="ai_api_key" type="password" autocomplete="new-password">
@@ -490,7 +493,7 @@ INDEX_HTML = r"""
         </div>
         <table>
           <thead>
-            <tr><th>Time</th><th>Status</th><th>Camera</th><th>Confidence</th><th>AI</th><th>Message</th></tr>
+            <tr><th>Time</th><th>Status</th><th>Camera</th><th>Confidence</th><th>AI</th><th>AI Raw / Message</th></tr>
           </thead>
           <tbody id="eventsBody"></tbody>
         </table>
@@ -521,7 +524,7 @@ INDEX_HTML = r"""
     let cameras = [];
     const numericIds = ["confidence", "verify_interval", "alert_cooldown", "frame_skip", "loop_sleep"];
     const configIds = [
-      "rtsp_url", "ai_base_url", "ai_api_key", "vision_model", "yolo_model",
+      "rtsp_url", "ai_base_url", "ai_api_key", "vision_model", "verify_prompt", "yolo_model",
       "telegram_bot_token", "telegram_chat_id", ...numericIds
     ];
 
@@ -593,7 +596,7 @@ INDEX_HTML = r"""
           event.camera || "",
           event.confidence ? Number(event.confidence).toFixed(2) : "",
           event.ai_result || "",
-          event.message || event.error || ""
+          event.ai_raw || event.message || event.error || ""
         ]) {
           const cell = document.createElement("td");
           cell.textContent = value;
@@ -1093,14 +1096,14 @@ def normalize_ai_result(content: str) -> str:
 
 
 def verify_scene(image_path: Path, config: dict[str, Any]) -> tuple[str, str]:
-    require_config(config, ["ai_api_key", "ai_base_url", "vision_model"])
+    require_config(config, ["ai_api_key", "ai_base_url", "vision_model", "verify_prompt"])
     payload = {
         "model": config["vision_model"],
         "messages": [
             {
                 "role": "user",
                 "content": [
-                    {"type": "text", "text": PROMPT},
+                    {"type": "text", "text": str(config["verify_prompt"])},
                     {"type": "image_url", "image_url": {"url": image_to_data_url(image_path)}},
                 ],
             }
@@ -1237,7 +1240,7 @@ def monitor_loop(config: dict[str, Any]) -> None:
                             ai_result, raw = verify_scene(verify_path, config)
                             last_verify[index] = now
                             set_state(last_ai_result=ai_result, last_verify_at=now_iso(), last_error="")
-                            add_event("verified", camera=camera_name, confidence=best_confidence, ai_result=ai_result, message=raw)
+                            add_event("verified", camera=camera_name, confidence=best_confidence, ai_result=ai_result, ai_raw=raw, message=raw)
                         except Exception as exc:
                             last_verify[index] = now
                             set_state(last_error=str(exc), last_verify_at=now_iso())
@@ -1377,7 +1380,7 @@ def api_test_ai() -> JSONResponse:
         return JSONResponse({"success": False, "error": "No snapshot. Capture first."}, status_code=400)
     try:
         result, raw = verify_scene(SNAPSHOT_PATH, read_config())
-        add_event("test_ai", ai_result=result, message=raw)
+        add_event("test_ai", ai_result=result, ai_raw=raw, message=raw)
         return JSONResponse({"success": True, "result": result, "raw": raw})
     except Exception as exc:
         add_event("test_ai_error", error=str(exc))
@@ -1391,7 +1394,7 @@ def api_test_ai_camera(index: int = 0) -> JSONResponse:
         path = capture_camera_snapshot(config, index)
         result, raw = verify_scene(path, config)
         camera = get_camera(config, index)
-        add_event("test_ai_camera", camera=camera["name"], ai_result=result, message=raw)
+        add_event("test_ai_camera", camera=camera["name"], ai_result=result, ai_raw=raw, message=raw)
         return JSONResponse({"success": True, "camera": camera["name"], "result": result, "raw": raw})
     except Exception as exc:
         add_event("test_ai_camera_error", error=str(exc))
@@ -1408,7 +1411,7 @@ async def api_test_ai_upload(file: UploadFile = File(...)) -> JSONResponse:
     path.write_bytes(content)
     try:
         result, raw = verify_scene(path, read_config())
-        add_event("test_ai_upload", ai_result=result, message=raw)
+        add_event("test_ai_upload", ai_result=result, ai_raw=raw, message=raw)
         return JSONResponse({"success": True, "result": result, "raw": raw})
     except Exception as exc:
         add_event("test_ai_upload_error", error=str(exc))

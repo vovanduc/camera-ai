@@ -12,6 +12,7 @@
   "ai_base_url": "https://9router.minhhungtsbd.me/v1",
   "ai_api_key": "",
   "vision_model": "gh/oswe-vscode-prime",
+  "verify_prompt": "Đây là ảnh camera giám sát người già trong nhà.\n\nHãy xác định:\n- Người có bị té ngã không\n- Người có đang gặp nguy hiểm không\n- Người có đang nằm dưới đất bất thường không\n- Người có đang cần trợ giúp không\n- Người có đang cố đứng dậy nhưng thất bại không\n\nNếu nguy hiểm trả lời:\nEMERGENCY\n\nNếu bình thường trả lời:\nSAFE\n\nChỉ trả lời đúng 1 từ:\nSAFE\nhoặc\nEMERGENCY\n",
   "yolo_model": "yolov8s.pt",
   "confidence": 0.5,
   "verify_interval": 20,

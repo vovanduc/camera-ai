@@ -103,6 +103,7 @@ Trong tab **Settings**:
 | `AI Base URL` | Base URL OpenAI-compatible, ví dụ `https://9router.minhhungtsbd.me/v1` |
 | `Vision Model` | Model vision, ví dụ `gh/oswe-vscode-prime` |
 | `AI API Key` | API key, nên lấy từ `.env` |
+| `AI Verify Prompt` | Prompt xác minh té ngã gửi tới AI. Có thể chỉnh trực tiếp trong UI |
 | `YOLO Model` | Model YOLO, ví dụ `yolov8s.pt` |
 | `Telegram Bot Token` | Bot token, nên lấy từ `.env` |
 | `Telegram Chat ID` | Chat nhận cảnh báo, có thể lấy từ `.env` |
@@ -124,6 +125,8 @@ Các tab chính:
 - **Settings**: cấu hình RTSP, AI, YOLO, Telegram và timeout/cooldown.
 - **Events**: log các trạng thái `started`, `verified`, `telegram_sent`, `ai_error`, `rtsp_reconnect`.
 - **Tools**: test AI bằng snapshot mới nhất, upload ảnh test AI, test Telegram.
+
+Mỗi event `verified`, `test_ai`, `test_ai_camera`, `test_ai_upload` lưu thêm trường `ai_raw`, là nội dung text AI trả về sau khi parse response từ 9Router/OpenAI-compatible gateway.
 
 ## Nhiều Camera
 
