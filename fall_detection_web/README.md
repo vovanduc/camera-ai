@@ -131,6 +131,16 @@ Các tab có hash URL riêng, ví dụ `#cameras`, `#live`, `#events`. Khi reloa
 
 Mỗi event `verified`, `test_ai`, `test_ai_camera`, `test_ai_upload` lưu thêm trường `ai_raw`, là nội dung text AI trả về sau khi parse response từ 9Router/OpenAI-compatible gateway.
 
+Events hiển thị thời gian theo UTC+7 trên UI. Event vẫn lưu `time` UTC và thêm `time_local` UTC+7 trong file JSONL.
+
+Các event có snapshot sẽ lưu ảnh trong:
+
+```text
+data/event_images
+```
+
+Ảnh event được giữ tối đa 24 giờ, hiển thị thumbnail trong tab Events và có thể click để phóng to trong modal.
+
 Prompt mặc định yêu cầu AI trả đúng 2 dòng:
 
 ```text

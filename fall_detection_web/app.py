@@ -2,9 +2,10 @@ import base64
 import json
 import logging
 import os
+import shutil
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -18,8 +19,10 @@ DATA_DIR = ROOT / "data"
 CONFIG_PATH = DATA_DIR / "config.json"
 ENV_PATH = ROOT / ".env"
 EVENTS_PATH = DATA_DIR / "events.jsonl"
+EVENT_IMAGES_DIR = DATA_DIR / "event_images"
 SNAPSHOT_PATH = DATA_DIR / "latest.jpg"
 VERIFY_PATH = DATA_DIR / "verify.jpg"
+LOCAL_TZ = timezone(timedelta(hours=7))
 
 DEFAULT_VERIFY_PROMPT = """Bạn là hệ thống xác minh té ngã từ ảnh camera trong nhà.
 
@@ -375,6 +378,16 @@ INDEX_HTML = r"""
       vertical-align: top;
     }
     th { color: var(--muted); font-size: 12px; }
+    .event-thumb {
+      width: 76px;
+      height: 46px;
+      object-fit: cover;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #03070b;
+      cursor: pointer;
+      display: block;
+    }
     pre {
       white-space: pre-wrap;
       overflow: auto;
@@ -579,7 +592,7 @@ INDEX_HTML = r"""
         </div>
         <table>
           <thead>
-            <tr><th>Time</th><th>Status</th><th>Camera</th><th>Confidence</th><th>AI</th><th>AI Raw / Message</th></tr>
+            <tr><th>Time (UTC+7)</th><th>Image</th><th>Status</th><th>Camera</th><th>Confidence</th><th>AI</th><th>AI Raw / Message</th></tr>
           </thead>
           <tbody id="eventsBody"></tbody>
         </table>
@@ -698,22 +711,56 @@ INDEX_HTML = r"""
       body.innerHTML = "";
       for (const event of events) {
         const row = document.createElement("tr");
-        for (const value of [
-          event.time || "",
+        const values = [
+          event.time_local || formatLocalTime(event.time),
+          null,
           event.status || "",
           event.camera || "",
           event.confidence ? Number(event.confidence).toFixed(2) : "",
           event.ai_result || "",
           event.ai_raw || event.message || event.error || ""
-        ]) {
+        ];
+        for (const value of values) {
           const cell = document.createElement("td");
-          cell.textContent = value;
+          if (value === null) {
+            if (event.image_url) {
+              const img = document.createElement("img");
+              img.className = "event-thumb";
+              img.alt = event.camera || event.status || "event";
+              img.src = event.image_url;
+              img.addEventListener("click", () => showViewer(
+                `Event: ${event.camera || event.status || "image"}`,
+                event.image_url,
+                "snapshot"
+              ));
+              cell.append(img);
+            } else {
+              cell.textContent = "-";
+            }
+          } else {
+            cell.textContent = value;
+          }
           row.append(cell);
         }
         body.append(row);
       }
       setStatus("eventsStatus", `Loaded ${events.length} events`, "ok");
       renderDashboard();
+    }
+    function formatLocalTime(value) {
+      if (!value) return "";
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return value;
+      return date.toLocaleString("vi-VN", {
+        timeZone: "Asia/Ho_Chi_Minh",
+        hour12: false,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit"
+      });
     }
     function renderDashboard() {
       const enabled = cameras.map(normalizeCamera).filter(camera => camera.enabled);
@@ -748,7 +795,7 @@ INDEX_HTML = r"""
         const row = document.createElement("div");
         row.className = "summary-item";
         const label = document.createElement("span");
-        label.textContent = event.time || "";
+        label.textContent = event.time_local || formatLocalTime(event.time);
         const value = document.createElement("div");
         value.textContent = `${event.status || ""}${event.camera ? " | " + event.camera : ""}${event.ai_result ? " | " + event.ai_result : ""}${event.error ? " | " + event.error : ""}`;
         row.append(label, value);
@@ -1099,8 +1146,13 @@ def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
+def local_iso() -> str:
+    return datetime.now(LOCAL_TZ).isoformat(timespec="seconds")
+
+
 def ensure_data_dir() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
+    EVENT_IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def parse_env_file(path: Path) -> dict[str, str]:
@@ -1264,9 +1316,34 @@ def read_state() -> dict[str, Any]:
         return status.copy()
 
 
-def add_event(status_name: str, **fields: Any) -> None:
+def cleanup_event_images(max_age_seconds: int = 86400) -> None:
     ensure_data_dir()
-    event = {"time": now_iso(), "status": status_name, **fields}
+    cutoff = time.time() - max_age_seconds
+    for path in EVENT_IMAGES_DIR.glob("*.jpg"):
+        try:
+            if path.stat().st_mtime < cutoff:
+                path.unlink()
+        except OSError:
+            continue
+
+
+def save_event_image(source_path: Path | None, status_name: str) -> str:
+    if not source_path or not source_path.exists():
+        return ""
+    cleanup_event_images()
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%f")
+    safe_status = "".join(ch for ch in status_name if ch.isalnum() or ch in ("_", "-")) or "event"
+    target = EVENT_IMAGES_DIR / f"{stamp}_{safe_status}.jpg"
+    shutil.copyfile(source_path, target)
+    return target.name
+
+
+def add_event(status_name: str, image_path: Path | None = None, **fields: Any) -> None:
+    ensure_data_dir()
+    image_file = save_event_image(image_path, status_name)
+    event = {"time": now_iso(), "time_local": local_iso(), "status": status_name, **fields}
+    if image_file:
+        event["image_file"] = image_file
     with EVENTS_PATH.open("a", encoding="utf-8") as file:
         file.write(json.dumps(event, ensure_ascii=False) + "\n")
 
@@ -1282,6 +1359,9 @@ def read_events(limit: int = 100) -> list[dict[str, Any]]:
         except json.JSONDecodeError:
             continue
         if isinstance(event, dict):
+            image_file = str(event.get("image_file", "")).strip()
+            if image_file and (EVENT_IMAGES_DIR / image_file).exists():
+                event["image_url"] = f"/api/event-image/{image_file}"
             events.append(event)
     return list(reversed(events))
 
@@ -1573,6 +1653,7 @@ def monitor_loop(config: dict[str, Any]) -> None:
                             set_state(last_ai_result=ai_result, last_verify_at=now_iso(), last_error="")
                             add_event(
                                 "verified",
+                                image_path=verify_path,
                                 camera=camera_name,
                                 confidence=best_confidence,
                                 ai_result=ai_result,
@@ -1583,7 +1664,7 @@ def monitor_loop(config: dict[str, Any]) -> None:
                         except Exception as exc:
                             last_verify[index] = now
                             set_state(last_error=str(exc), last_verify_at=now_iso())
-                            add_event("ai_error", camera=camera_name, confidence=best_confidence, error=str(exc))
+                            add_event("ai_error", image_path=verify_path, camera=camera_name, confidence=best_confidence, error=str(exc))
                             ai_result = "SAFE"
 
                         if ai_result == "EMERGENCY":
@@ -1596,12 +1677,12 @@ def monitor_loop(config: dict[str, Any]) -> None:
                                     )
                                     last_alert[index] = now
                                     set_state(last_alert_at=now_iso())
-                                    add_event("telegram_sent", camera=camera_name, confidence=best_confidence, ai_result=ai_result)
+                                    add_event("telegram_sent", image_path=verify_path, camera=camera_name, confidence=best_confidence, ai_result=ai_result)
                                 except Exception as exc:
                                     set_state(last_error=str(exc))
-                                    add_event("telegram_error", camera=camera_name, confidence=best_confidence, error=str(exc))
+                                    add_event("telegram_error", image_path=verify_path, camera=camera_name, confidence=best_confidence, error=str(exc))
                             else:
-                                add_event("cooldown", camera=camera_name, confidence=best_confidence, ai_result=ai_result)
+                                add_event("cooldown", image_path=verify_path, camera=camera_name, confidence=best_confidence, ai_result=ai_result)
 
             time.sleep(float(config["loop_sleep"]))
     except Exception as exc:
@@ -1673,7 +1754,7 @@ def api_capture() -> JSONResponse:
         config = read_config()
         cameras = normalize_cameras(config)
         path = capture_camera_snapshot(config, 0) if cameras else capture_snapshot(config)
-        add_event("snapshot", message=f"Captured {path.name}")
+        add_event("snapshot", image_path=path, message=f"Captured {path.name}")
         return JSONResponse({"success": True, "message": "snapshot captured"})
     except Exception as exc:
         add_event("snapshot_error", error=str(exc))
@@ -1713,13 +1794,22 @@ def api_events() -> JSONResponse:
     return JSONResponse({"success": True, "events": read_events()})
 
 
+@app.get("/api/event-image/{image_file}")
+def api_event_image(image_file: str) -> Response:
+    safe_name = Path(image_file).name
+    path = EVENT_IMAGES_DIR / safe_name
+    if not path.exists() or not path.is_file():
+        raise HTTPException(status_code=404, detail="Event image not found")
+    return Response(path.read_bytes(), media_type="image/jpeg")
+
+
 @app.post("/api/test-ai")
 def api_test_ai() -> JSONResponse:
     if not SNAPSHOT_PATH.exists():
         return JSONResponse({"success": False, "error": "No snapshot. Capture first."}, status_code=400)
     try:
         result, ai_description, raw = verify_scene(SNAPSHOT_PATH, read_config())
-        add_event("test_ai", ai_result=result, ai_raw=ai_description, ai_response=raw, message=ai_description)
+        add_event("test_ai", image_path=SNAPSHOT_PATH, ai_result=result, ai_raw=ai_description, ai_response=raw, message=ai_description)
         return JSONResponse({"success": True, "result": result, "description": ai_description, "raw": raw})
     except Exception as exc:
         add_event("test_ai_error", error=str(exc))
@@ -1733,7 +1823,7 @@ def api_test_ai_camera(index: int = 0) -> JSONResponse:
         path = capture_camera_snapshot(config, index)
         result, ai_description, raw = verify_scene(path, config)
         camera = get_camera(config, index)
-        add_event("test_ai_camera", camera=camera["name"], ai_result=result, ai_raw=ai_description, ai_response=raw, message=ai_description)
+        add_event("test_ai_camera", image_path=path, camera=camera["name"], ai_result=result, ai_raw=ai_description, ai_response=raw, message=ai_description)
         return JSONResponse({"success": True, "camera": camera["name"], "result": result, "description": ai_description, "raw": raw})
     except Exception as exc:
         add_event("test_ai_camera_error", error=str(exc))
@@ -1750,7 +1840,7 @@ async def api_test_ai_upload(file: UploadFile = File(...)) -> JSONResponse:
     path.write_bytes(content)
     try:
         result, ai_description, raw = verify_scene(path, read_config())
-        add_event("test_ai_upload", ai_result=result, ai_raw=ai_description, ai_response=raw, message=ai_description)
+        add_event("test_ai_upload", image_path=path, ai_result=result, ai_raw=ai_description, ai_response=raw, message=ai_description)
         return JSONResponse({"success": True, "result": result, "description": ai_description, "raw": raw})
     except Exception as exc:
         add_event("test_ai_upload_error", error=str(exc))
