@@ -23,6 +23,7 @@ VERIFY_PATH = DATA_DIR / "verify.jpg"
 
 DEFAULT_CONFIG: dict[str, Any] = {
     "rtsp_url": "",
+    "go2rtc_url": "",
     "cameras": [],
     "telegram_bot_token": "",
     "telegram_chat_id": "",
@@ -59,6 +60,7 @@ EMERGENCY
 
 ENV_CONFIG_KEYS = {
     "RTSP_URL": "rtsp_url",
+    "GO2RTC_URL": "go2rtc_url",
     "TELEGRAM_BOT_TOKEN": "telegram_bot_token",
     "TELEGRAM_CHAT_ID": "telegram_chat_id",
     "AI_BASE_URL": "ai_base_url",
@@ -251,7 +253,7 @@ INDEX_HTML = r"""
     .camera-head,
     .camera-row {
       display: grid;
-      grid-template-columns: 60px minmax(120px, .8fr) minmax(260px, 1.4fr) max-content;
+      grid-template-columns: 58px minmax(100px, .7fr) minmax(210px, 1.2fr) minmax(90px, .55fr) minmax(170px, 1fr) max-content;
       gap: 8px;
       align-items: center;
     }
@@ -293,6 +295,14 @@ INDEX_HTML = r"""
       width: 100%;
       aspect-ratio: 16 / 9;
       object-fit: contain;
+      background: #03070b;
+      display: block;
+    }
+    .live-card iframe,
+    .viewer-body iframe {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      border: 0;
       background: #03070b;
       display: block;
     }
@@ -440,6 +450,8 @@ INDEX_HTML = r"""
           <div>Enabled</div>
           <div>Name</div>
           <div>RTSP URL</div>
+          <div>go2rtc src</div>
+          <div>Live URL</div>
           <div>Actions</div>
         </div>
         <div id="cameraList"></div>
@@ -469,6 +481,10 @@ INDEX_HTML = r"""
           <div class="full">
             <label for="rtsp_url">RTSP URL</label>
             <input id="rtsp_url" autocomplete="off" placeholder="rtsp://10.10.0.2:8554/bep_sub">
+          </div>
+          <div class="full">
+            <label for="go2rtc_url">go2rtc URL for Live</label>
+            <input id="go2rtc_url" autocomplete="off" placeholder="http://10.10.0.2:1984 hoặc https://go2rtc.example">
           </div>
           <div>
             <label for="ai_base_url">AI Base URL</label>
@@ -581,7 +597,7 @@ INDEX_HTML = r"""
     let currentViewerMode = "";
     const numericIds = ["confidence", "verify_interval", "alert_cooldown", "frame_skip", "loop_sleep"];
     const configIds = [
-      "rtsp_url", "ai_base_url", "ai_api_key", "vision_model", "verify_prompt", "yolo_model",
+      "rtsp_url", "go2rtc_url", "ai_base_url", "ai_api_key", "vision_model", "verify_prompt", "yolo_model",
       "telegram_bot_token", "telegram_chat_id", ...numericIds
     ];
 
@@ -669,10 +685,18 @@ INDEX_HTML = r"""
       document.getElementById("viewerTitle").textContent = title;
       const body = document.getElementById("viewerBody");
       body.innerHTML = "";
-      const img = document.createElement("img");
-      img.alt = title;
-      img.src = mode === "snapshot" ? `${url}${url.includes("?") ? "&" : "?"}ts=${Date.now()}` : url;
-      body.append(img);
+      if (mode === "iframe") {
+        const frame = document.createElement("iframe");
+        frame.title = title;
+        frame.src = url;
+        frame.allow = "autoplay; fullscreen; picture-in-picture";
+        body.append(frame);
+      } else {
+        const img = document.createElement("img");
+        img.alt = title;
+        img.src = mode === "snapshot" ? `${url}${url.includes("?") ? "&" : "?"}ts=${Date.now()}` : url;
+        body.append(img);
+      }
       document.getElementById("refreshViewerBtn").style.display = mode === "snapshot" ? "" : "none";
       document.getElementById("viewerDialog").showModal();
     }
@@ -699,8 +723,26 @@ INDEX_HTML = r"""
       return {
         enabled: camera.enabled !== false,
         name: camera.name || "",
-        rtsp_url: camera.rtsp_url || ""
+        rtsp_url: camera.rtsp_url || "",
+        go2rtc_src: camera.go2rtc_src || "",
+        live_url: camera.live_url || ""
       };
+    }
+    function go2rtcStreamUrl(src) {
+      const base = document.getElementById("go2rtc_url").value.trim().replace(/\/$/, "");
+      if (!base || !src) return "";
+      return `${base}/stream.html?src=${encodeURIComponent(src)}&mode=mse`;
+    }
+    function cameraLiveUrl(camera) {
+      const item = normalizeCamera(camera);
+      if (item.live_url.trim()) return item.live_url.trim();
+      if (item.go2rtc_src.trim()) return go2rtcStreamUrl(item.go2rtc_src.trim());
+      return "";
+    }
+    function cameraVideoSource(camera, index) {
+      const direct = cameraLiveUrl(camera);
+      if (direct) return {url: direct, mode: "iframe"};
+      return {url: `/api/camera/video?index=${index}`, mode: "video"};
     }
     function renderCameras() {
       const list = document.getElementById("cameraList");
@@ -725,6 +767,16 @@ INDEX_HTML = r"""
         rtsp.value = camera.rtsp_url;
         rtsp.addEventListener("input", () => cameras[index].rtsp_url = rtsp.value);
 
+        const go2rtcSrc = document.createElement("input");
+        go2rtcSrc.placeholder = "bep";
+        go2rtcSrc.value = camera.go2rtc_src;
+        go2rtcSrc.addEventListener("input", () => cameras[index].go2rtc_src = go2rtcSrc.value);
+
+        const liveUrl = document.createElement("input");
+        liveUrl.placeholder = "Optional direct stream.html URL";
+        liveUrl.value = camera.live_url;
+        liveUrl.addEventListener("input", () => cameras[index].live_url = liveUrl.value);
+
         const actions = document.createElement("div");
         actions.className = "camera-actions";
         const snapshot = document.createElement("button");
@@ -738,11 +790,10 @@ INDEX_HTML = r"""
         const video = document.createElement("button");
         video.type = "button";
         video.textContent = "Video";
-        video.addEventListener("click", () => showViewer(
-          `Video: ${camera.name || "Camera " + (index + 1)}`,
-          `/api/camera/video?index=${index}`,
-          "video"
-        ));
+        video.addEventListener("click", () => {
+          const source = cameraVideoSource(cameras[index], index);
+          showViewer(`Video: ${camera.name || "Camera " + (index + 1)}`, source.url, source.mode);
+        });
         const test = document.createElement("button");
         test.type = "button";
         test.textContent = "Test AI";
@@ -772,7 +823,7 @@ INDEX_HTML = r"""
           renderLive();
         });
         actions.append(snapshot, video, test, remove);
-        row.append(enabled, name, rtsp, actions);
+        row.append(enabled, name, rtsp, go2rtcSrc, liveUrl, actions);
         list.append(row);
       });
     }
@@ -789,10 +840,19 @@ INDEX_HTML = r"""
         card.className = "live-card";
         const title = document.createElement("h3");
         title.textContent = camera.name || camera.rtsp_url;
-        const img = document.createElement("img");
-        img.alt = title.textContent;
-        img.src = `/api/camera/video?index=${index}&ts=${Date.now()}`;
-        card.append(title, img);
+        const source = cameraVideoSource(camera, index);
+        if (source.mode === "iframe") {
+          const frame = document.createElement("iframe");
+          frame.title = title.textContent;
+          frame.src = source.url;
+          frame.allow = "autoplay; fullscreen; picture-in-picture";
+          card.append(title, frame);
+        } else {
+          const img = document.createElement("img");
+          img.alt = title.textContent;
+          img.src = `${source.url}&ts=${Date.now()}`;
+          card.append(title, img);
+        }
         grid.append(card);
       }
       setStatus("liveStatus", visible.length ? `Showing ${visible.length} camera(s)` : "No enabled cameras", visible.length ? "ok" : "warn");
@@ -997,15 +1057,19 @@ def normalize_cameras(config: dict[str, Any]) -> list[dict[str, Any]]:
             if not isinstance(camera, dict):
                 continue
             rtsp_url = str(camera.get("rtsp_url", "")).strip()
+            go2rtc_src = str(camera.get("go2rtc_src", "")).strip()
+            live_url = str(camera.get("live_url", "")).strip()
             name = str(camera.get("name", "")).strip() or f"Camera {index + 1}"
             cameras.append({
                 "enabled": camera.get("enabled") is not False,
                 "name": name,
                 "rtsp_url": rtsp_url,
+                "go2rtc_src": go2rtc_src,
+                "live_url": live_url,
             })
     fallback_rtsp = str(config.get("rtsp_url", "")).strip()
     if not cameras and fallback_rtsp:
-        cameras.append({"enabled": True, "name": "Default", "rtsp_url": fallback_rtsp})
+        cameras.append({"enabled": True, "name": "Default", "rtsp_url": fallback_rtsp, "go2rtc_src": "", "live_url": ""})
     return cameras
 
 

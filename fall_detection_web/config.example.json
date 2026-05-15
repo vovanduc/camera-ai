@@ -1,10 +1,13 @@
 {
   "rtsp_url": "rtsp://10.10.0.2:8554/bep_sub",
+  "go2rtc_url": "http://10.10.0.2:1984",
   "cameras": [
     {
       "enabled": true,
       "name": "bep",
-      "rtsp_url": "rtsp://10.10.0.2:8554/bep_sub"
+      "rtsp_url": "rtsp://10.10.0.2:8554/bep_sub",
+      "go2rtc_src": "bep",
+      "live_url": ""
     }
   ],
   "telegram_bot_token": "",

@@ -100,6 +100,7 @@ Trong tab **Settings**:
 | Field | Mô tả |
 | --- | --- |
 | `RTSP URL` | RTSP từ go2rtc, ví dụ `rtsp://10.10.0.2:8554/bep_sub` |
+| `go2rtc URL for Live` | Base URL go2rtc để xem live trực tiếp, ví dụ `http://10.10.0.2:1984` |
 | `AI Base URL` | Base URL OpenAI-compatible, ví dụ `https://9router.minhhungtsbd.me/v1` |
 | `Vision Model` | Model vision, ví dụ `gh/oswe-vscode-prime` |
 | `AI API Key` | API key, nên lấy từ `.env` |
@@ -138,13 +139,28 @@ Danh sách camera được lưu trong `data/config.json`:
     {
       "enabled": true,
       "name": "bep",
-      "rtsp_url": "rtsp://10.10.0.2:8554/bep_sub"
+      "rtsp_url": "rtsp://10.10.0.2:8554/bep_sub",
+      "go2rtc_src": "bep",
+      "live_url": ""
     }
   ]
 }
 ```
 
 Trường `rtsp_url` ở Settings vẫn được giữ làm fallback cho cấu hình cũ. Nếu chưa có `cameras`, app sẽ tự tạo một camera mặc định từ `rtsp_url`.
+
+Live view ưu tiên nguồn trực tiếp từ go2rtc:
+
+1. Nếu camera có `live_url`, UI embed trực tiếp URL đó.
+2. Nếu camera có `go2rtc_src` và Settings có `go2rtc_url`, UI tự tạo:
+
+```text
+{go2rtc_url}/stream.html?src={go2rtc_src}&mode=mse
+```
+
+3. Nếu thiếu cả hai, UI mới fallback sang Python MJPEG proxy `/api/camera/video`.
+
+Khuyến nghị dùng `go2rtc_src` hoặc `live_url` để live mượt hơn và tránh delay do Python/OpenCV proxy.
 
 Các endpoint camera:
 
