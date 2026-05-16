@@ -1063,16 +1063,16 @@
         
         const testBtn = tr.querySelector(".cam-test");
         testBtn.onclick = async () => {
-          const label = camera.name || \`Camera \${index + 1}\`;
-          setStatus("cameraStatus", \`Testing \${label}: capture snapshot and verify AI...\`, "warn");
+          const label = camera.name || `Camera ${index + 1}`;
+          setStatus("cameraStatus", `Testing ${label}: capture snapshot and verify AI...`, "warn");
           testBtn.disabled = true;
           try {
-            const data = await api(\`/api/test-ai-camera?index=\${index}\`, {method: "POST", timeout: 150000});
+            const data = await api(`/api/test-ai-camera?index=${index}`, {method: "POST", timeout: 150000});
             document.getElementById("toolResult").textContent = JSON.stringify(data, null, 2);
-            setStatus("cameraStatus", \`Test \${data.camera || label}: \${data.result || "complete"}\`, "ok");
+            setStatus("cameraStatus", `Test ${data.camera || label}: ${data.result || "complete"}`, "ok");
             showTab("toolsPanel");
           } catch (err) {
-            setStatus("cameraStatus", \`Test \${label} failed: \${err.message}\`, "err");
+            setStatus("cameraStatus", `Test ${label} failed: ${err.message}`, "err");
           } finally {
             testBtn.disabled = false;
           }
