@@ -162,7 +162,7 @@ def _coerce(key: str, value: Any) -> Any:
 
 def _serialize(key: str, value: Any) -> str:
     """Serialize a config value to string for DB storage."""
-    if key == "cameras":
+    if key in ["cameras", "prompts"]:
         return json.dumps(value, ensure_ascii=False)
     return str(value)
 
