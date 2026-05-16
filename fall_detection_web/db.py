@@ -166,7 +166,24 @@ def save_event_image(source_path: Path | None, status_name: str) -> str:
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%f")
     safe_status = "".join(ch for ch in status_name if ch.isalnum() or ch in ("_", "-")) or "event"
     target = EVENT_IMAGES_DIR / f"{stamp}_{safe_status}.jpg"
-    shutil.copyfile(source_path, target)
+    
+    # Nén ảnh bằng OpenCV để giảm dung lượng
+    try:
+        import cv2
+        img = cv2.imread(str(source_path))
+        if img is not None:
+            h, w = img.shape[:2]
+            if w > 1280:
+                new_w = 1280
+                new_h = int(h * (1280 / w))
+                img = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_AREA)
+            cv2.imwrite(str(target), img, [cv2.IMWRITE_JPEG_QUALITY, 70])
+        else:
+            shutil.copyfile(source_path, target)
+    except Exception as e:
+        logger.warning(f"[DB] Lỗi khi nén ảnh {source_path}, sẽ copy raw: {e}")
+        shutil.copyfile(source_path, target)
+        
     return target.name
 
 
