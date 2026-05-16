@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import logging
 import secrets
+import shutil
+import psutil
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
@@ -126,10 +128,18 @@ async def save_config(new_config: dict[str, Any] = Body(...), _: str = Depends(a
 
 @app.get("/api/status")
 async def get_status(_: str = Depends(auth.require_auth)):
+    disk = psutil.disk_usage('/')
     return {
         "success": True,
         "status": monitor.read_state(),
         "event_count": db.count_events(),
+        "system": {
+            "cpu_percent": psutil.cpu_percent(interval=None),
+            "ram_percent": psutil.virtual_memory().percent,
+            "disk_percent": disk.percent,
+            "disk_used_gb": round(disk.used / (1024**3), 1),
+            "disk_total_gb": round(disk.total / (1024**3), 1),
+        }
     }
 
 @app.post("/api/start")

@@ -362,7 +362,12 @@
           <p>Control Panel</p>
         </div>
       </div>
-      <div style="display: flex; gap: 12px; align-items: center;">
+      <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; justify-content: flex-end;">
+        <div class="system-stats" style="display: flex; gap: 12px; font-size: 13px; font-weight: 600; color: var(--muted); border-right: 1px solid var(--line); padding-right: 12px;">
+          <span>CPU: <span id="cpuPercent" style="color: var(--text);">0</span>%</span>
+          <span>RAM: <span id="ramPercent" style="color: var(--text);">0</span>%</span>
+          <span>Disk: <span id="diskPercent" style="color: var(--text);">0</span>% (<span id="diskUsed" style="color: var(--text);">0</span>GB)</span>
+        </div>
         <div class="status-pill"><span id="runDot" class="dot"></span><span id="runText">Stopped</span></div>
         <form action="/auth/logout" method="post" style="margin: 0;">
           <button type="submit" class="danger">Logout</button>
@@ -655,6 +660,24 @@
       setText("lastCamera", s.last_camera || "-");
       setText("lastAlert", s.last_alert_at || "-");
       if (s.last_error) setStatus("actionStatus", s.last_error, "err");
+
+      if (data.system) {
+        setText("cpuPercent", data.system.cpu_percent.toFixed(1));
+        setText("ramPercent", data.system.ram_percent.toFixed(1));
+        setText("diskPercent", data.system.disk_percent.toFixed(1));
+        setText("diskUsed", data.system.disk_used_gb);
+        
+        const setUsageColor = (id, percent) => {
+          const el = document.getElementById(id);
+          if (percent > 85) el.style.color = "var(--danger)";
+          else if (percent > 70) el.style.color = "var(--warn)";
+          else el.style.color = "var(--text)";
+        };
+        setUsageColor("cpuPercent", data.system.cpu_percent);
+        setUsageColor("ramPercent", data.system.ram_percent);
+        setUsageColor("diskPercent", data.system.disk_percent);
+      }
+
       renderDashboard();
     }
     function renderEvents(events) {
