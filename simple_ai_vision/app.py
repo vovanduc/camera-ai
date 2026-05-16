@@ -678,6 +678,10 @@ cháy"></textarea>
       return `${base}${path}?${query.toString()}`;
     }
 
+    function hasGo2rtcUrl() {
+      return Boolean(document.getElementById("go2rtc_url").value.trim());
+    }
+
     function snapshotUrl(camera) {
       return apiPath(`api/camera/frame?camera=${encodeURIComponent(camera)}&_=${Date.now()}`);
     }
@@ -1000,7 +1004,7 @@ cháy"></textarea>
       const item = snapshotSourceOrError(camera);
       if (!item) return;
       currentSnapshotCamera = "";
-      if (item.src) {
+      if (item.src && hasGo2rtcUrl()) {
         const url = buildGo2rtcUrl(item.src, "/stream.html", {mode: "mse"});
         const frame = document.createElement("iframe");
         frame.src = url;
@@ -1012,13 +1016,13 @@ cháy"></textarea>
 
       const img = document.createElement("img");
       img.id = "snapshotImage";
-      img.dataset.src = "";
+      img.dataset.src = item.src;
       img.dataset.entityId = item.entity_id;
-      img.alt = `Live snapshot ${label || item.entity_id}`;
-      img.src = entitySnapshotUrl(item.entity_id);
-      currentSnapshotCamera = item.entity_id;
-      showViewer(`Live snapshot: ${label || item.entity_id}`, img, img.src);
-      viewerRefreshTimer = setInterval(refreshSnapshot, 3000);
+      img.alt = `Live snapshot ${label || item.src || item.entity_id}`;
+      img.src = cameraFrameUrl(item);
+      currentSnapshotCamera = item.src || item.entity_id;
+      showViewer(`Live snapshot: ${label || item.src || item.entity_id}`, img, img.src);
+      viewerRefreshTimer = setInterval(refreshSnapshot, item.src ? 1500 : 3000);
     }
 
     function refreshSnapshot() {
@@ -1194,14 +1198,15 @@ cháy"></textarea>
         title.append(name, src);
 
         let media;
-        if (camera.live_source === "go2rtc") {
+        if (camera.live_source === "go2rtc" && hasGo2rtcUrl()) {
           media = document.createElement("iframe");
           media.src = buildGo2rtcUrl(camera.src, "/stream.html", {mode: "mse"});
           media.allow = "autoplay; fullscreen; picture-in-picture";
         } else {
           media = document.createElement("img");
+          media.dataset.src = camera.src;
           media.dataset.entityId = camera.entity_id;
-          media.src = entitySnapshotUrl(camera.entity_id);
+          media.src = camera.src ? snapshotUrl(camera.src) : entitySnapshotUrl(camera.entity_id);
           media.alt = `Live snapshot ${cameraLabel(camera)}`;
         }
         media.title = `Live ${cameraLabel(camera)}`;
@@ -1211,8 +1216,10 @@ cháy"></textarea>
       });
 
       liveRefreshTimer = setInterval(() => {
-        document.querySelectorAll("#liveGrid img[data-entity-id]").forEach(img => {
-          img.src = entitySnapshotUrl(img.dataset.entityId);
+        document.querySelectorAll("#liveGrid img").forEach(img => {
+          const src = img.dataset.src || "";
+          const entityId = img.dataset.entityId || "";
+          img.src = src ? snapshotUrl(src) : entitySnapshotUrl(entityId);
         });
       }, 5000);
     }

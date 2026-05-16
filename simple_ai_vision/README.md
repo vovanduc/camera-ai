@@ -409,6 +409,8 @@ frigate_url = http://ccab4aaf-frigate:5000
 
 The Frigate `8555` port is WebRTC and is not used for snapshot analysis.
 
+The **Video** button and **Live** tab use go2rtc `stream.html` when `go2rtc_url` is configured. If `go2rtc_url` is empty or unavailable, they fall back to a lightweight refreshed snapshot view through Simple AI Vision, which works with the Frigate API fallback.
+
 To trigger analysis from Frigate person detection, enable MQTT in Frigate and use a Home Assistant automation on `frigate/events`:
 
 ```yaml
