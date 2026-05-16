@@ -3,13 +3,14 @@
 Web UI nhẹ để chạy script fall detection:
 
 ```text
-RTSP từ go2rtc
--> YOLO person detection
+Frigate/OpenVINO person detection
+-> webhook /analyze hoặc /verify
+-> snapshot mới nhất từ go2rtc JPEG
 -> AI vision verification
 -> Telegram alert
 ```
 
-Ứng dụng này tách riêng khỏi addon `simple_ai_vision`. Nó dùng OpenCV/YOLO vì mục tiêu là chạy fall detection trực tiếp trên VPS/DC.
+Ứng dụng này tách riêng khỏi addon `simple_ai_vision`. Mode mặc định là Frigate/OpenVINO trigger để không cần load YOLO/PyTorch trong app.
 
 ## Lỗi Đã Fix
 
@@ -84,6 +85,7 @@ Các biến `.env` được hỗ trợ:
 | `AI_BASE_URL` | `ai_base_url` |
 | `AI_API_KEY` | `ai_api_key` |
 | `VISION_MODEL` | `vision_model` |
+| `DETECTION_MODE` | `detection_mode` |
 | `YOLO_MODEL` | `yolo_model` |
 | `TELEGRAM_BOT_TOKEN` | `telegram_bot_token` |
 | `TELEGRAM_CHAT_ID` | `telegram_chat_id` |
@@ -99,14 +101,14 @@ Trong tab **Settings**:
 
 | Field | Mô tả |
 | --- | --- |
-| `RTSP URL` | RTSP từ go2rtc, ví dụ `rtsp://10.10.0.2:8554/bep_sub` |
-| `go2rtc URL for Live` | Base URL go2rtc để xem live trực tiếp, ví dụ `http://10.10.0.2:1984` |
+| `RTSP URL` | Fallback RTSP nếu không dùng được snapshot từ go2rtc, ví dụ `rtsp://10.10.0.2:8554/bep_sub` |
+| `go2rtc URL` | Base URL go2rtc để lấy snapshot và xem live trực tiếp, ví dụ `http://10.10.0.2:1984` |
 | `AI Base URL` | Base URL OpenAI-compatible, ví dụ `https://9router.minhhungtsbd.me/v1` |
 | `Vision Model` | Model vision, ví dụ `gh/oswe-vscode-prime` |
 | `AI API Key` | API key, nên lấy từ `.env` |
 | `AI Verify Prompt` | Prompt xác minh té ngã gửi tới AI. Có thể chỉnh trực tiếp trong UI |
-| `Detection Mode` | `YOLO prefilter` dùng YOLO để chỉ gọi AI khi thấy người; `AI interval only` không load YOLO để giảm RAM |
-| `YOLO Model` | Model YOLO, khuyến nghị `yolov8n.pt` để giảm RAM/CPU |
+| `Detection Mode` | `Frigate/OpenVINO trigger` là mode nhẹ mặc định; `YOLO prefilter` chỉ dùng nếu tự cài OpenCV/Ultralytics; `AI interval only` gọi AI theo chu kỳ |
+| `YOLO Model` | Chỉ dùng cho mode YOLO, khuyến nghị `yolov8n.pt` để giảm RAM/CPU |
 | `YOLO Image Size` | Kích thước inference YOLO, ví dụ `416`; giảm xuống `320` sẽ nhẹ hơn nhưng kém chính xác hơn |
 | `Telegram Bot Token` | Bot token, nên lấy từ `.env` |
 | `Telegram Chat ID` | Chat nhận cảnh báo, có thể lấy từ `.env` |
@@ -123,9 +125,9 @@ Không commit file `.env` hoặc `data/config.json` vì có thể chứa token/A
 Các tab chính:
 
 - **Dashboard**: Start/Stop monitor, xem tổng quan camera, go2rtc public URL, AI model và recent events.
-- **Cameras**: thêm nhiều camera RTSP, bật/tắt từng camera, xem snapshot/video và test AI từng camera.
+- **Cameras**: thêm nhiều camera, bật/tắt từng camera, cấu hình `go2rtc_src`, xem snapshot/video và test AI từng camera.
 - **Live**: xem nhiều camera cùng lúc bằng MJPEG proxy từ RTSP.
-- **Settings**: cấu hình RTSP, AI, YOLO, Telegram và timeout/cooldown.
+- **Settings**: cấu hình go2rtc, AI, Frigate/YOLO mode, Telegram và timeout/cooldown.
 - **Events**: log các trạng thái `started`, `verified`, `telegram_sent`, `ai_error`, `rtsp_reconnect`.
 - **Tools**: test AI bằng snapshot mới nhất, upload ảnh test AI, test Telegram.
 
@@ -170,7 +172,7 @@ Danh sách camera được lưu trong `data/config.json`:
 }
 ```
 
-Trường `rtsp_url` ở Settings vẫn được giữ làm fallback cho cấu hình cũ. Nếu chưa có `cameras`, app sẽ tự tạo một camera mặc định từ `rtsp_url`.
+Trong Frigate mode, mỗi camera nên có `go2rtc_src` và `go2rtc_url` để app lấy JPEG trực tiếp từ `{go2rtc_url}/api/frame.jpeg?src={go2rtc_src}`. Trường `rtsp_url` vẫn được giữ làm fallback cho cấu hình cũ. Nếu chưa có `cameras`, app sẽ tự tạo một camera mặc định từ `rtsp_url`.
 
 Live view ưu tiên nguồn trực tiếp từ go2rtc:
 
@@ -223,26 +225,26 @@ Camera
 -> WireGuard
 
 DC/VPS
-RTSP from go2rtc
--> YOLO person detection
+Frigate/OpenVINO person detection
+-> webhook /analyze hoặc /verify
+-> go2rtc snapshot
 -> AI fall verification
 -> Telegram
 ```
 
 ## Realtime Notes
 
-Monitor dùng một capture thread cho mỗi camera để luôn giữ frame mới nhất và bỏ frame cũ. Thread phân tích chỉ lấy latest frame, vì vậy khi AI/Yolo xử lý chậm, app không đọc backlog RTSP cũ nhiều phút.
+Frigate mode không chạy vòng lặp phân tích ảnh trong app. App chỉ nằm chờ webhook, lấy snapshot mới nhất rồi gọi AI. Các capture thread chỉ dùng cho mode YOLO/AI interval cũ.
 
 ## Resource Tuning
 
-RAM cao chủ yếu đến từ `ultralytics/torch` và model YOLO. Trong `htop`, một process nhiều thread có thể hiện nhiều dòng giống nhau; RSS bị lặp theo thread chứ không phải mỗi dòng là một process riêng. Tuy nhiên nếu thấy process Python gần 1GB RAM thì nguyên nhân chính vẫn là PyTorch/YOLO.
+Frigate mode không cài `ultralytics/torch` theo mặc định, nên RAM thấp hơn nhiều so với YOLO mode. Nếu tự cài YOLO/OpenCV, RAM cao chủ yếu đến từ `ultralytics/torch` và model YOLO.
 
 Các cách giảm RAM/CPU:
 
-- Dùng `yolov8n.pt` thay vì `yolov8s.pt`.
-- Giảm `YOLO Image Size` xuống `416` hoặc `320`.
-- Tăng `Frame Skip`.
-- Chọn `Detection Mode = AI interval only` để không load YOLO/PyTorch. Chế độ này giảm RAM mạnh nhất, nhưng sẽ gọi AI theo `Verify Interval` thay vì dùng YOLO làm bộ lọc người.
+- Dùng `Detection Mode = Frigate/OpenVINO trigger`.
+- Cấu hình `go2rtc_url` và `go2rtc_src` để snapshot qua HTTP JPEG, tránh mở RTSP bằng OpenCV.
+- Chỉ cài OpenCV/Ultralytics nếu thật sự cần YOLO hoặc MJPEG proxy.
 
 Các log như:
 
@@ -255,17 +257,19 @@ Các log như:
 
 ## Frigate/OpenVINO Trigger Mode
 
-Chon `Detection Mode = Frigate/OpenVINO trigger` neu Frigate da detect `person`.
-Mode nay khong load YOLO/PyTorch va khong chay object detection trong app.
+Chọn `Detection Mode = Frigate/OpenVINO trigger` nếu Frigate đã detect `person`.
+Mode này không load YOLO/PyTorch và không chạy object detection trong app.
 
-Frigate hoac Home Assistant goi webhook:
+Frigate hoặc Home Assistant gọi một trong các webhook:
 
 ```http
 POST /api/frigate-trigger
+POST /verify
+POST /analyze
 Content-Type: application/json
 ```
 
-Payload toi thieu:
+Payload tối thiểu:
 
 ```json
 {
@@ -275,7 +279,13 @@ Payload toi thieu:
 }
 ```
 
-Payload Frigate event co `after.camera`, `after.label`, `after.top_score` cung duoc ho tro.
-Ten camera se duoc map voi `name` hoac `go2rtc_src` trong danh sach Cameras. Khi nhan trigger hop le, app chup snapshot RTSP cua camera do, goi AI verify, gui Telegram neu AI tra ve `EMERGENCY`.
+Payload Frigate event có `after.camera`, `after.label`, `after.top_score` cũng được hỗ trợ.
+Tên camera sẽ được map với `name` hoặc `go2rtc_src` trong danh sách Cameras. Khi nhận trigger hợp lệ, app ưu tiên chụp snapshot từ go2rtc JPEG; nếu thiếu `go2rtc_url` hoặc `go2rtc_src` thì fallback sang RTSP. Sau đó app gọi AI verify và gửi Telegram nếu AI trả về `EMERGENCY`.
 
-Khi save Settings hoac Cameras trong UI luc monitor dang chay, app se tu restart monitor worker voi cau hinh moi. Khong can restart uvicorn.
+Khi save Settings hoặc Cameras trong UI lúc monitor đang chạy, app sẽ tự restart monitor worker với cấu hình mới. Không cần restart uvicorn.
+
+Nếu vẫn muốn dùng mode YOLO hoặc RTSP MJPEG proxy, cài thêm:
+
+```bash
+pip install opencv-python==4.10.0.84 ultralytics==8.3.59
+```

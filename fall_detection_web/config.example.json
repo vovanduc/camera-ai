@@ -16,7 +16,7 @@
   "ai_api_key": "",
   "vision_model": "gh/oswe-vscode-prime",
   "verify_prompt": "Bạn là hệ thống xác minh té ngã từ ảnh camera trong nhà.\n\nNhiệm vụ:\n- Xác định người có bị té ngã, nằm bất thường dưới đất, gặp nguy hiểm, cần trợ giúp, hoặc cố đứng dậy thất bại không.\n- Nếu có nguy hiểm, dòng 1 chỉ trả lời: EMERGENCY\n- Nếu bình thường, dòng 1 chỉ trả lời: SAFE\n- Dòng 2 mô tả rất ngắn tình huống trong ảnh, tối đa 20 ký tự.\n\nChỉ trả lời đúng 2 dòng, không giải thích thêm:\nSAFE hoặc EMERGENCY\nMô tả dưới 20 ký tự\n",
-  "detection_mode": "yolo",
+  "detection_mode": "frigate",
   "yolo_model": "yolov8n.pt",
   "yolo_imgsz": 416,
   "confidence": 0.5,

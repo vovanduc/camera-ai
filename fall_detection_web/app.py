@@ -47,7 +47,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "ai_api_key": "",
     "vision_model": "gh/oswe-vscode-prime",
     "verify_prompt": DEFAULT_VERIFY_PROMPT,
-    "detection_mode": "yolo",
+    "detection_mode": "frigate",
     "yolo_model": "yolov8n.pt",
     "yolo_imgsz": 416,
     "confidence": 0.5,
@@ -441,7 +441,7 @@ INDEX_HTML = r"""
     <header>
       <div>
         <h1>Fall Detection Control</h1>
-        <p>YOLO person detect -> AI fall verification -> Telegram alert</p>
+        <p>Frigate/OpenVINO person trigger -> AI fall verification -> Telegram alert</p>
       </div>
       <div class="status-pill"><span id="runDot" class="dot"></span><span id="runText">Stopped</span></div>
     </header>
@@ -532,7 +532,7 @@ INDEX_HTML = r"""
             <input id="rtsp_url" autocomplete="off" placeholder="rtsp://10.10.0.2:8554/bep_sub">
           </div>
           <div class="full">
-            <label for="go2rtc_url">go2rtc URL for Live</label>
+            <label for="go2rtc_url">go2rtc URL</label>
             <input id="go2rtc_url" autocomplete="off" placeholder="http://10.10.0.2:1984 hoặc https://go2rtc.example">
           </div>
           <div>
@@ -554,8 +554,8 @@ INDEX_HTML = r"""
           <div>
             <label for="detection_mode">Detection Mode</label>
             <select id="detection_mode">
-              <option value="yolo">YOLO prefilter</option>
               <option value="frigate">Frigate/OpenVINO trigger</option>
+              <option value="yolo">YOLO prefilter</option>
               <option value="interval">AI interval only</option>
             </select>
           </div>
@@ -1325,10 +1325,13 @@ def get_camera(config: dict[str, Any], index: int) -> dict[str, Any]:
     cameras = normalize_cameras(config)
     if index < 0 or index >= len(cameras):
         raise ValueError("Invalid camera index")
-    camera = cameras[index]
-    if not str(camera.get("rtsp_url", "")).strip():
-        raise ValueError("Camera RTSP URL is empty")
-    return camera
+    return cameras[index]
+
+
+def has_camera_snapshot_source(config: dict[str, Any], camera: dict[str, Any]) -> bool:
+    if str(config.get("go2rtc_url", "")).strip() and str(camera.get("go2rtc_src", "")).strip():
+        return True
+    return bool(str(camera.get("rtsp_url", "")).strip())
 
 
 def set_state(**updates: Any) -> None:
@@ -1635,6 +1638,8 @@ def process_camera_verification(
 def capture_rtsp_snapshot(rtsp_url: str, output_path: Path) -> Path:
     import cv2
 
+    if not rtsp_url:
+        raise ValueError("Camera RTSP URL is empty")
     cap = cv2.VideoCapture(rtsp_url)
     cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
     try:
@@ -1653,9 +1658,39 @@ def capture_snapshot(config: dict[str, Any], output_path: Path = SNAPSHOT_PATH) 
     return capture_rtsp_snapshot(str(config["rtsp_url"]), output_path)
 
 
+def capture_go2rtc_snapshot(config: dict[str, Any], camera: dict[str, Any], output_path: Path) -> Path:
+    base_url = str(config.get("go2rtc_url", "")).strip().rstrip("/")
+    src = str(camera.get("go2rtc_src", "")).strip()
+    if not base_url or not src:
+        raise ValueError("go2rtc URL or camera src is empty")
+
+    logger.info("[SNAPSHOT] go2rtc src=%s", src)
+    response = requests.get(
+        f"{base_url}/api/frame.jpeg",
+        params={"src": src},
+        timeout=10,
+    )
+    response.raise_for_status()
+    if not response.content:
+        raise ValueError("go2rtc returned empty snapshot")
+
+    ensure_data_dir()
+    output_path.write_bytes(response.content)
+    return output_path
+
+
 def capture_camera_snapshot(config: dict[str, Any], index: int) -> Path:
     camera = get_camera(config, index)
-    return capture_rtsp_snapshot(str(camera["rtsp_url"]), camera_snapshot_path(index))
+    output_path = camera_snapshot_path(index)
+    if str(config.get("go2rtc_url", "")).strip() and str(camera.get("go2rtc_src", "")).strip():
+        try:
+            return capture_go2rtc_snapshot(config, camera, output_path)
+        except (requests.RequestException, ValueError) as exc:
+            if not str(camera.get("rtsp_url", "")).strip():
+                raise
+            logger.warning("[SNAPSHOT] go2rtc failed, falling back to RTSP: %s", exc)
+
+    return capture_rtsp_snapshot(str(camera.get("rtsp_url", "")).strip(), output_path)
 
 
 def mjpeg_frames(rtsp_url: str):
@@ -1712,12 +1747,14 @@ def capture_latest_frames(index: int, camera: dict[str, Any], holder: dict[str, 
 
 
 def monitor_loop(config: dict[str, Any]) -> None:
-    import cv2
-
-    cameras = [camera for camera in normalize_cameras(config) if camera.get("enabled") and camera.get("rtsp_url")]
+    detection_mode = str(config.get("detection_mode", "yolo")).lower()
+    all_cameras = [camera for camera in normalize_cameras(config) if camera.get("enabled")]
+    if detection_mode == "frigate":
+        cameras = [camera for camera in all_cameras if has_camera_snapshot_source(config, camera)]
+    else:
+        cameras = [camera for camera in all_cameras if camera.get("rtsp_url")]
     if not cameras:
         raise ValueError("No enabled cameras")
-    detection_mode = str(config.get("detection_mode", "yolo")).lower()
     if detection_mode == "frigate":
         logger.info("[MONITOR] Frigate/OpenVINO trigger mode ready")
         set_state(running=True, started_at=now_iso(), last_error="", mode=detection_mode)
@@ -1729,6 +1766,8 @@ def monitor_loop(config: dict[str, Any]) -> None:
             set_state(running=False)
             add_event("stopped", message="Monitor stopped")
         return
+
+    import cv2
 
     model = None
     if detection_mode == "yolo":
@@ -1958,9 +1997,15 @@ def api_status() -> JSONResponse:
 def api_start() -> JSONResponse:
     try:
         config = read_config()
-        if not [camera for camera in normalize_cameras(config) if camera.get("enabled") and camera.get("rtsp_url")]:
+        detection_mode = str(config.get("detection_mode", "yolo")).lower()
+        enabled_cameras = [camera for camera in normalize_cameras(config) if camera.get("enabled")]
+        if detection_mode == "frigate":
+            has_source = any(has_camera_snapshot_source(config, camera) for camera in enabled_cameras)
+        else:
+            has_source = any(camera.get("rtsp_url") for camera in enabled_cameras)
+        if not has_source:
             raise ValueError("No enabled cameras")
-        if str(config.get("detection_mode", "yolo")).lower() == "yolo":
+        if detection_mode == "yolo":
             require_config(config, ["yolo_model"])
     except ValueError as exc:
         return JSONResponse({"success": False, "error": str(exc)}, status_code=400)
@@ -2007,10 +2052,13 @@ def api_camera_snapshot(index: int = 0) -> Response:
 def api_camera_video(index: int = 0) -> StreamingResponse:
     try:
         camera = get_camera(read_config(), index)
+        rtsp_url = str(camera.get("rtsp_url", "")).strip()
+        if not rtsp_url:
+            raise ValueError("Camera RTSP URL is empty")
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return StreamingResponse(
-        mjpeg_frames(str(camera["rtsp_url"])),
+        mjpeg_frames(rtsp_url),
         media_type="multipart/x-mixed-replace; boundary=frame",
     )
 
@@ -2056,6 +2104,8 @@ def api_test_ai_camera(index: int = 0) -> JSONResponse:
         return JSONResponse({"success": False, "error": str(exc)}, status_code=500)
 
 
+@app.post("/analyze")
+@app.post("/verify")
 @app.post("/api/frigate-trigger")
 async def api_frigate_trigger(request: Request) -> JSONResponse:
     try:
