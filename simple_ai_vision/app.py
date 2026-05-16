@@ -164,7 +164,7 @@ INDEX_HTML = r"""
     }
     .camera-head,
     .camera-row {
-      --camera-grid: 42px minmax(110px, .9fr) minmax(150px, 1.2fr) minmax(150px, 1.15fr) minmax(110px, .9fr) max-content;
+      --camera-grid: 42px minmax(140px, 1fr) minmax(140px, 1fr) max-content;
       display: grid;
       grid-template-columns: var(--camera-grid);
       gap: 6px;
@@ -551,14 +551,6 @@ cháy"></textarea>
       <h2>Cameras</h2>
       <div class="hint">Nhập đúng tên stream trong go2rtc, ví dụ <code>bep</code>. Addon sẽ gọi <code>{go2rtc_url}/api/frame.jpeg?src=bep</code>.</div>
       <div class="entity-picker">
-        <select id="haEntitySelect">
-          <option value="">Load Home Assistant camera entities...</option>
-        </select>
-        <button class="secondary" id="loadEntitiesBtn" type="button">Load Entities</button>
-        <button class="secondary" id="addEntityBtn" type="button">Add Selected</button>
-      </div>
-      <div id="entityStatus" class="status"></div>
-      <div class="entity-picker">
         <select id="go2rtcStreamSelect">
           <option value="">Load go2rtc streams...</option>
         </select>
@@ -566,16 +558,9 @@ cháy"></textarea>
         <button class="secondary" id="addStreamBtn" type="button">Add Stream</button>
       </div>
       <div id="streamStatus" class="status"></div>
-      <div class="actions">
-        <button class="secondary" id="loadTriggersBtn" type="button">Load Motion/Sensors</button>
-        <span id="triggerStatus" class="status"></span>
-      </div>
-      <datalist id="triggerEntityList"></datalist>
       <div class="camera-head">
         <div>Monitor</div>
         <div>Name</div>
-        <div>HA entity</div>
-        <div>Trigger</div>
         <div>go2rtc src</div>
         <div>Actions</div>
       </div>
@@ -585,8 +570,6 @@ cháy"></textarea>
         <button class="secondary" id="saveCamerasBtn" type="button">Save Cameras</button>
         <span id="cameraStatus" class="status"></span>
       </div>
-      <h2>Automation YAML</h2>
-      <pre id="automationYaml">Select motion/sensor triggers to generate Home Assistant automation YAML.</pre>
     </section>
 
     <section class="panel tab-panel" id="livePanel">
@@ -833,27 +816,6 @@ cháy"></textarea>
         nameInput.addEventListener("input", () => cameras[index].name = nameInput.value);
         nameWrap.append(nameLabel, nameInput);
 
-        const entityWrap = document.createElement("div");
-        const entityLabel = document.createElement("div");
-        entityLabel.className = "mobile-label";
-        entityLabel.textContent = "HA entity";
-        const entityInput = document.createElement("input");
-        entityInput.value = item.entity_id;
-        entityInput.placeholder = "HA entity";
-        entityInput.addEventListener("input", () => cameras[index].entity_id = entityInput.value);
-        entityWrap.append(entityLabel, entityInput);
-
-        const triggerWrap = document.createElement("div");
-        const triggerLabel = document.createElement("div");
-        triggerLabel.className = "mobile-label";
-        triggerLabel.textContent = "Trigger";
-        const triggerInput = document.createElement("input");
-        triggerInput.value = item.trigger_entity_id;
-        triggerInput.placeholder = "Motion/sensor trigger";
-        triggerInput.setAttribute("list", "triggerEntityList");
-        triggerInput.addEventListener("input", () => cameras[index].trigger_entity_id = triggerInput.value);
-        triggerWrap.append(triggerLabel, triggerInput);
-
         const srcWrap = document.createElement("div");
         const srcLabel = document.createElement("div");
         srcLabel.className = "mobile-label";
@@ -900,56 +862,10 @@ cháy"></textarea>
         actionsList.append(snapshot, video, test, remove);
         actions.append(actionsSummary, actionsList);
 
-        row.append(monitorWrap, nameWrap, entityWrap, triggerWrap, srcWrap, actions);
+        row.append(monitorWrap, nameWrap, srcWrap, actions);
         list.append(row);
       });
       renderLiveCameras();
-      renderAutomationYaml();
-    }
-
-    function analyzePayload(camera) {
-      const item = normalizeCamera(camera);
-      if (item.src) return `{"camera":"${item.src}"}`;
-      if (item.entity_id) return `{"entity_id":"${item.entity_id}"}`;
-      return "{}";
-    }
-
-    function renderAutomationYaml() {
-      const output = document.getElementById("automationYaml");
-      if (!output) return;
-      const items = cameras.map(normalizeCamera).filter(camera => (
-        camera.enabled && camera.trigger_entity_id && (camera.src || camera.entity_id)
-      ));
-      if (!items.length) {
-        output.textContent = "Select motion/sensor triggers to generate Home Assistant automation YAML.";
-        return;
-      }
-      const blocks = items.map((camera, index) => {
-        const alias = `Simple AI Vision - ${cameraLabel(camera)}`;
-        return [
-          `- alias: "${alias}"`,
-          "trigger:",
-          "    - platform: state",
-          `      entity_id: ${camera.trigger_entity_id}`,
-          `      to: "on"`,
-          "action:",
-          "    - service: rest_command.simple_ai_vision_analyze",
-          "      data:",
-          `        payload: '${analyzePayload(camera)}'`,
-          "mode: single"
-        ].join("\n");
-      });
-      output.textContent = [
-        "rest_command:",
-        "  simple_ai_vision_analyze:",
-        '    url: "http://127.0.0.1:8000/analyze"',
-        "    method: post",
-        '    content_type: "application/json"',
-        '    payload: "{{ payload }}"',
-        "",
-        "automation:",
-        blocks.map(block => block.split("\n").map(line => `  ${line}`).join("\n")).join("\n\n")
-      ].join("\n");
     }
 
     function cameraSrcOrError(camera) {
@@ -964,7 +880,7 @@ cháy"></textarea>
     function snapshotSourceOrError(camera) {
       const item = normalizeCamera(camera);
       if (item.src || item.entity_id) return item;
-      document.getElementById("result").textContent = "go2rtc src or HA entity is required.";
+      document.getElementById("result").textContent = "go2rtc src is required.";
       return null;
     }
 
@@ -1032,85 +948,6 @@ cháy"></textarea>
       const entityId = img.dataset.entityId || "";
       img.src = src ? snapshotUrl(src) : entitySnapshotUrl(entityId);
       currentViewerUrl = img.src;
-    }
-
-    function renderHaEntities(entities) {
-      const select = document.getElementById("haEntitySelect");
-      select.innerHTML = "";
-      const empty = document.createElement("option");
-      empty.value = "";
-      empty.textContent = entities.length ? "Select Home Assistant entity" : "No camera entities found";
-      select.append(empty);
-
-      entities.forEach(entity => {
-        const option = document.createElement("option");
-        option.value = entity.entity_id;
-        option.dataset.name = entity.name || "";
-        option.textContent = entity.name
-          ? `${entity.name} (${entity.entity_id})`
-          : entity.entity_id;
-        select.append(option);
-      });
-    }
-
-    async function loadHaEntities() {
-      setStatus("entityStatus", "Loading Home Assistant entities...", "");
-      try {
-        const {response, data} = await requestJson("api/hass/cameras", {}, 15000);
-        if (!response.ok || !data.success) {
-          setStatus("entityStatus", data.error || "Could not load Home Assistant entities", "err");
-          return;
-        }
-        renderHaEntities(data.entities || []);
-        setStatus("entityStatus", `Loaded ${(data.entities || []).length} camera entities`, "ok");
-      } catch (err) {
-        setStatus("entityStatus", err.name === "AbortError" ? "Entity load timeout" : err.message, "err");
-      }
-    }
-
-    function renderTriggerEntities(entities) {
-      const list = document.getElementById("triggerEntityList");
-      list.innerHTML = "";
-      entities.forEach(entity => {
-        const option = document.createElement("option");
-        option.value = entity.entity_id;
-        option.label = entity.name ? `${entity.name} (${entity.entity_id})` : entity.entity_id;
-        list.append(option);
-      });
-    }
-
-    async function loadTriggerEntities() {
-      setStatus("triggerStatus", "Loading motion/sensor triggers...", "");
-      try {
-        const {response, data} = await requestJson("api/hass/triggers", {}, 15000);
-        if (!response.ok || !data.success) {
-          setStatus("triggerStatus", data.error || "Could not load trigger entities", "err");
-          return;
-        }
-        renderTriggerEntities(data.entities || []);
-        setStatus("triggerStatus", `Loaded ${(data.entities || []).length} trigger entities`, "ok");
-      } catch (err) {
-        setStatus("triggerStatus", err.name === "AbortError" ? "Trigger load timeout" : err.message, "err");
-      }
-    }
-
-    function addSelectedEntity() {
-      const select = document.getElementById("haEntitySelect");
-      const value = select.value.trim();
-      if (!value) {
-        setStatus("entityStatus", "Select an entity first, or use Add Camera for manual input.", "err");
-        return;
-      }
-      const selected = select.selectedOptions[0];
-      cameras.push({
-        enabled: true,
-        name: selected?.dataset.name || "",
-        entity_id: value,
-        trigger_entity_id: "",
-        src: ""
-      });
-      renderCameras();
-      setStatus("entityStatus", `Added ${value}. Fill go2rtc src before testing.`, "ok");
     }
 
     function renderGo2rtcStreams(streams) {
@@ -1399,9 +1236,6 @@ cháy"></textarea>
     document.getElementById("testAiBtn").addEventListener("click", testAiApi);
     document.getElementById("testTelegramBtn").addEventListener("click", testTelegram);
     document.getElementById("saveCamerasBtn").addEventListener("click", () => saveConfig("cameraStatus"));
-    document.getElementById("loadEntitiesBtn").addEventListener("click", loadHaEntities);
-    document.getElementById("addEntityBtn").addEventListener("click", addSelectedEntity);
-    document.getElementById("loadTriggersBtn").addEventListener("click", loadTriggerEntities);
     document.getElementById("loadStreamsBtn").addEventListener("click", loadGo2rtcStreams);
     document.getElementById("addStreamBtn").addEventListener("click", addSelectedStream);
     document.getElementById("refreshLiveBtn").addEventListener("click", renderLiveCameras);
@@ -2368,6 +2202,8 @@ def read_events(limit: int = 100) -> list[dict[str, str]]:
             continue
         if not isinstance(event, dict):
             continue
+        if str(event.get("status", "")) == "disabled":
+            continue
         events.append(
             {
                 "time": str(event.get("time", "")),
@@ -2707,7 +2543,6 @@ async def analyze(request: Request) -> JSONResponse:
         )
         if saved_camera and saved_camera.get("enabled") is False:
             camera_name = saved_camera.get("src") or saved_camera.get("entity_id") or "camera"
-            record_event(camera_name, "", "disabled")
             logger.info("Skipping disabled camera=%s", camera_name)
             return JSONResponse(
                 {
