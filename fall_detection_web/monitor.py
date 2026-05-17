@@ -133,7 +133,7 @@ def record_and_upload_clip(
         CLIPS_DIR.mkdir(parents=True, exist_ok=True)
         stamp = time.strftime("%Y%m%dT%H%M%S")
         safe_camera = "".join(ch if ch.isalnum() or ch in ("-", "_") else "_" for ch in camera_name) or "camera"
-        path = CLIPS_DIR / f"{stamp}_{safe_camera}.avi"
+        base_path = CLIPS_DIR / f"{stamp}_{safe_camera}"
 
         while time.time() < deadline and not stop_event.is_set():
             with lock:
@@ -145,8 +145,21 @@ def record_and_upload_clip(
             last_seq = seq
             if writer is None:
                 height, width = frame.shape[:2]
-                fourcc = cv2.VideoWriter_fourcc(*"MJPG")
-                writer = cv2.VideoWriter(str(path), fourcc, fps, (width, height))
+                for suffix, codec in ((".mp4", "mp4v"), (".avi", "MJPG")):
+                    candidate = base_path.with_suffix(suffix)
+                    candidate_writer = cv2.VideoWriter(
+                        str(candidate),
+                        cv2.VideoWriter_fourcc(*codec),
+                        fps,
+                        (width, height),
+                    )
+                    if candidate_writer.isOpened():
+                        path = candidate
+                        writer = candidate_writer
+                        break
+                    candidate_writer.release()
+                if writer is None:
+                    raise RuntimeError("Could not open video writer")
             writer.write(frame)
             time.sleep(1.0 / fps)
     except Exception as exc:
