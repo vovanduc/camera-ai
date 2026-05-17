@@ -182,6 +182,8 @@ def verify_scene(image_path: Path, config: dict[str, Any], camera: dict[str, Any
                 prompt_text = str(p.get("content", prompt_text))
                 break
 
+    prompt_text = prompt_text.strip() or "Please analyze this image."
+
     payload = {
         "model": config["vision_model"],
         "messages": [
@@ -193,7 +195,7 @@ def verify_scene(image_path: Path, config: dict[str, Any], camera: dict[str, Any
                 ],
             }
         ],
-        "max_tokens": 20,
+        "max_tokens": 100,
         "stream": False,
     }
     headers = {
@@ -204,7 +206,13 @@ def verify_scene(image_path: Path, config: dict[str, Any], camera: dict[str, Any
     t0 = time.monotonic()
     response = _session.post(chat_url(config), headers=headers, json=payload, timeout=120)
     latency = time.monotonic() - t0
-    response.raise_for_status()
+    try:
+        response.raise_for_status()
+    except requests.exceptions.HTTPError as exc:
+        err_msg = response.text.strip()
+        logger.error("[AI] HTTP Error %s: %s", response.status_code, err_msg)
+        raise RuntimeError(f"{response.status_code} Error: {short_text(err_msg, 100)}") from exc
+    
     content = response_ai_content(response)
     result, description, raw = parse_ai_verdict(content)
     logger.info("[AI] latency=%.2fs result=%s description=%r", latency, result, description)
