@@ -54,10 +54,11 @@ def verify_password(plain: str, hashed: str) -> bool:
         return False
 
 
-def create_token(username: str) -> str:
+def create_token(username: str, expire_hours: float | None = None) -> str:
     if not _JOSE_OK:
         raise RuntimeError("python-jose not installed")
-    expire = datetime.now(timezone.utc) + timedelta(hours=_SESSION_HOURS)
+    hours = expire_hours if expire_hours is not None else _SESSION_HOURS
+    expire = datetime.now(timezone.utc) + timedelta(hours=hours)
     payload: dict[str, Any] = {"sub": username, "exp": expire}
     return _jwt.encode(payload, _JWT_SECRET, algorithm=_JWT_ALGORITHM)
 
