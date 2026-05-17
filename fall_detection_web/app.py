@@ -203,8 +203,35 @@ async def api_stop_monitor(_: str = Depends(auth.require_auth)):
     return {"success": True, "message": "Monitor stopped"}
 
 @app.get("/api/events")
-async def get_events(_: str = Depends(auth.require_auth)):
-    return {"success": True, "events": db.get_events()}
+async def get_events(
+    page: int = 1,
+    limit: int = 50,
+    ai_result: str | None = None,
+    camera: str | None = None,
+    _: str = Depends(auth.require_auth)
+):
+    if page < 1:
+        page = 1
+    if limit < 1 or limit > 500:
+        limit = 50
+        
+    # Clean up empty strings from query params
+    if ai_result == "" or ai_result == "All":
+        ai_result = None
+    if camera == "" or camera == "All":
+        camera = None
+        
+    offset = (page - 1) * limit
+    events = db.get_events(limit=limit, offset=offset, ai_result=ai_result, camera=camera)
+    total = db.get_events_total(ai_result=ai_result, camera=camera)
+    
+    return {
+        "success": True, 
+        "events": events,
+        "total": total,
+        "page": page,
+        "limit": limit
+    }
 
 @app.delete("/api/events")
 async def clear_events(_: str = Depends(auth.require_auth)):

@@ -583,8 +583,16 @@
     <section id="eventsPanel" class="tab-panel hidden">
       <div class="panel">
         <h2>Events</h2>
-        <div class="actions">
-          <button id="refreshEventsBtn" type="button">Refresh Events</button>
+        <div class="actions" style="margin-bottom: 12px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+          <select id="eventFilterCamera" style="padding: 6px 10px; border-radius: 4px; background: var(--panel-2); color: var(--text); border: 1px solid var(--line);">
+            <option value="">All Cameras</option>
+          </select>
+          <select id="eventFilterAI" style="padding: 6px 10px; border-radius: 4px; background: var(--panel-2); color: var(--text); border: 1px solid var(--line);">
+            <option value="">All AI Results</option>
+            <option value="SAFE">SAFE</option>
+            <option value="EMERGENCY">EMERGENCY</option>
+          </select>
+          <button id="refreshEventsBtn" type="button">Filter & Refresh</button>
           <button id="clearEventsBtn" type="button" class="danger">Clear All Events</button>
           <span id="eventsStatus"></span>
         </div>
@@ -594,6 +602,13 @@
           </thead>
           <tbody id="eventsBody"></tbody>
         </table>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px;">
+          <div>
+            <button id="prevPageBtn" type="button" disabled>Previous</button>
+            <button id="nextPageBtn" type="button" disabled>Next</button>
+          </div>
+          <div id="paginationInfo" style="color: var(--muted); font-size: 13px;">Page 1</div>
+        </div>
       </div>
     </section>
 
@@ -689,6 +704,8 @@
     let currentViewerMode = "";
     let latestEvents = [];
     let latestStatus = {};
+    let eventsCurrentPage = 1;
+    let eventsTotalPages = 1;
     const numericIds = ["confidence", "verify_interval", "alert_cooldown", "frame_skip", "loop_sleep", "yolo_imgsz"];
     const configIds = [
       "ai_base_url", "ai_api_key", "vision_model", "verify_prompt", "detection_mode", "yolo_model",
@@ -784,8 +801,19 @@
 
       renderDashboard();
     }
-    function renderEvents(events) {
+    function renderEvents(data) {
+      const events = data.events || [];
       latestEvents = events;
+      
+      eventsCurrentPage = data.page || 1;
+      const total = data.total || 0;
+      const limit = data.limit || 50;
+      eventsTotalPages = Math.ceil(total / limit) || 1;
+      
+      document.getElementById("prevPageBtn").disabled = eventsCurrentPage <= 1;
+      document.getElementById("nextPageBtn").disabled = eventsCurrentPage >= eventsTotalPages;
+      document.getElementById("paginationInfo").textContent = `Page ${eventsCurrentPage} of ${eventsTotalPages} (${total} events)`;
+
       const body = document.getElementById("eventsBody");
       body.innerHTML = "";
       for (const event of events) {
@@ -924,8 +952,14 @@
       renderStatus(data);
     }
     async function loadEvents() {
-      const data = await api("/api/events", {timeout: 10000});
-      renderEvents(data.events || []);
+      try {
+        const camera = document.getElementById("eventFilterCamera") ? document.getElementById("eventFilterCamera").value : "";
+        const aiResult = document.getElementById("eventFilterAI") ? document.getElementById("eventFilterAI").value : "";
+        const data = await api(`/api/events?page=${eventsCurrentPage}&limit=50&camera=${encodeURIComponent(camera)}&ai_result=${encodeURIComponent(aiResult)}`, {timeout: 10000});
+        renderEvents(data);
+      } catch(err) {
+        setStatus("eventsStatus", err.message, "err");
+      }
     }
     function normalizeCamera(camera = {}) {
       return {
@@ -1089,6 +1123,19 @@
         body.appendChild(tr);
       });
       renderLive();
+      const eventFilterSelect = document.getElementById("eventFilterCamera");
+      const currentEventFilter = eventFilterSelect.value;
+      eventFilterSelect.innerHTML = '<option value="">All Cameras</option>';
+      cameras.forEach((c) => {
+        const name = c.name || c.rtsp_url;
+        if(name) {
+          const opt = document.createElement("option");
+          opt.value = name;
+          opt.textContent = name;
+          eventFilterSelect.appendChild(opt);
+        }
+      });
+      eventFilterSelect.value = currentEventFilter;
     }
 
     function openCameraModal(index = -1) {
@@ -1256,7 +1303,32 @@
       }
     });
     document.getElementById("refreshLiveBtn").addEventListener("click", renderLive);
-    document.getElementById("refreshEventsBtn").addEventListener("click", loadEvents);
+    
+    document.getElementById("refreshEventsBtn").addEventListener("click", () => {
+      eventsCurrentPage = 1;
+      loadEvents();
+    });
+    document.getElementById("eventFilterCamera").addEventListener("change", () => {
+      eventsCurrentPage = 1;
+      loadEvents();
+    });
+    document.getElementById("eventFilterAI").addEventListener("change", () => {
+      eventsCurrentPage = 1;
+      loadEvents();
+    });
+    document.getElementById("prevPageBtn").addEventListener("click", () => {
+      if (eventsCurrentPage > 1) {
+        eventsCurrentPage--;
+        loadEvents();
+      }
+    });
+    document.getElementById("nextPageBtn").addEventListener("click", () => {
+      if (eventsCurrentPage < eventsTotalPages) {
+        eventsCurrentPage++;
+        loadEvents();
+      }
+    });
+
     document.getElementById("clearEventsBtn").addEventListener("click", async () => {
       if (!confirm("Are you sure you want to delete all events?")) return;
       try {

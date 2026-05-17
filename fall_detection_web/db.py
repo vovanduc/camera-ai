@@ -234,12 +234,31 @@ def insert_event(status_name: str, image_path: Path | None = None, **fields: Any
         _prune_events(conn)
 
 
-def get_events(limit: int = 100, offset: int = 0) -> list[dict[str, Any]]:
+def get_events(
+    limit: int = 100, 
+    offset: int = 0, 
+    ai_result: str | None = None, 
+    camera: str | None = None
+) -> list[dict[str, Any]]:
+    query = "SELECT * FROM events"
+    params = []
+    conditions = []
+    
+    if ai_result:
+        conditions.append("ai_result = ?")
+        params.append(ai_result)
+    if camera:
+        conditions.append("camera = ?")
+        params.append(camera)
+        
+    if conditions:
+        query += " WHERE " + " AND ".join(conditions)
+        
+    query += " ORDER BY id DESC LIMIT ? OFFSET ?"
+    params.extend([limit, offset])
+
     with get_conn() as conn:
-        rows = conn.execute(
-            "SELECT * FROM events ORDER BY id DESC LIMIT ? OFFSET ?",
-            (limit, offset),
-        ).fetchall()
+        rows = conn.execute(query, params).fetchall()
     events: list[dict[str, Any]] = []
     for row in rows:
         event = dict(row)
@@ -248,6 +267,26 @@ def get_events(limit: int = 100, offset: int = 0) -> list[dict[str, Any]]:
             event["image_url"] = f"/api/event-image/{image_file}"
         events.append(event)
     return events
+
+
+def get_events_total(ai_result: str | None = None, camera: str | None = None) -> int:
+    query = "SELECT COUNT(*) FROM events"
+    params = []
+    conditions = []
+    
+    if ai_result:
+        conditions.append("ai_result = ?")
+        params.append(ai_result)
+    if camera:
+        conditions.append("camera = ?")
+        params.append(camera)
+        
+    if conditions:
+        query += " WHERE " + " AND ".join(conditions)
+
+    with get_conn() as conn:
+        count = conn.execute(query, params).fetchone()[0]
+    return count
 
 
 def count_events() -> int:
