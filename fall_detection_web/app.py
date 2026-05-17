@@ -18,6 +18,7 @@ import auth
 import config
 import db
 import monitor
+import teldrive
 
 logger = logging.getLogger("fall_detection_web")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -181,6 +182,18 @@ async def save_config(new_config: dict[str, Any] = Body(...), _: str = Depends(a
         updated = config.write_config(new_config)
         monitor.restart_monitor(updated)
         return {"success": True, "config": updated, "message": "Settings saved and monitor restarted"}
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/api/teldrive/check")
+async def check_teldrive_token(payload: dict[str, Any] = Body(default={}), _: str = Depends(auth.require_auth)):
+    try:
+        c = config.read_config()
+        token = str(payload.get("token", "")).strip() or None
+        base_url = str(payload.get("base_url", "")).strip() or None
+        result = teldrive.check_token(c, token=token, base_url=base_url)
+        return {"success": True, "result": result}
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 

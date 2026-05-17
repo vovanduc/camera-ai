@@ -33,6 +33,36 @@ def _headers(config: dict[str, Any]) -> dict[str, str]:
     return {"Authorization": f"Bearer {config['teldrive_token']}"}
 
 
+def check_token(config: dict[str, Any], token: str | None = None, base_url: str | None = None) -> dict[str, Any]:
+    cfg = config.copy()
+    if token is not None:
+        cfg["teldrive_token"] = token
+    if base_url is not None:
+        cfg["teldrive_base_url"] = base_url
+    if not str(cfg.get("teldrive_token", "")).strip():
+        raise ValueError("Missing Teldrive token")
+
+    response = _session.get(
+        f"{_api_base(cfg)}/auth/session",
+        headers=_headers(cfg),
+        timeout=15,
+    )
+    if response.status_code == 401:
+        return {"ok": False, "status_code": 401, "message": "Token is expired or invalid"}
+    if response.status_code == 403:
+        return {"ok": False, "status_code": 403, "message": "Token is not allowed"}
+    response.raise_for_status()
+
+    data = response.json() if response.content else {}
+    return {
+        "ok": True,
+        "status_code": response.status_code,
+        "name": data.get("name", ""),
+        "userName": data.get("userName", ""),
+        "expires": data.get("expires", ""),
+    }
+
+
 def _clean_segment(value: str) -> str:
     value = "".join(ch if ch.isalnum() or ch in ("-", "_", " ") else "_" for ch in value)
     return value.strip().replace(" ", "_") or "camera"

@@ -146,6 +146,7 @@ POST /auth/logout                # Logout
 
 GET  /api/config                 # Đọc config hiện tại
 POST /api/config                 # Lưu config (JSON body)
+POST /api/teldrive/check         # Kiểm tra Teldrive access_token còn hợp lệ
 GET  /api/status                 # Trạng thái monitor + event count
 POST /api/start                  # Khởi động YOLO monitor
 POST /api/stop                   # Dừng monitor
@@ -186,6 +187,8 @@ Monitor chạy nền vẫn dùng RTSP frame để YOLO local detect `person`. go
 ## Teldrive Upload
 
 Khi bật trong tab **Settings**, app có thể upload ảnh event và clip ngắn lên Teldrive self-hosted.
+
+`TELDRIVE_TOKEN` là giá trị cookie `access_token` của phiên đăng nhập Teldrive. Browser không cho trang Fall Detection đọc cookie của domain Teldrive, nên không thể tự động lấy token chỉ bằng một nút bấm nếu hai app chạy khác origin. Hãy copy `access_token` từ DevTools/Cookie Editor rồi dùng nút **Check Teldrive Token** trong Settings để kiểm tra token còn live hay đã hết hạn.
 
 Luồng upload:
 

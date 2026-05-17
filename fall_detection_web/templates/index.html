@@ -649,8 +649,10 @@
         <div class="actions" style="margin-top:14px">
           <button id="saveConfigBtn" class="primary" type="button">Save Settings</button>
           <button id="reloadConfigBtn" type="button">Reload</button>
+          <button id="checkTeldriveBtn" type="button">Check Teldrive Token</button>
           <span id="configStatus"></span>
         </div>
+        <p id="teldriveTokenStatus"></p>
       </div>
       <div class="panel" style="margin-top: 18px;">
         <h2>Admin Credentials</h2>
@@ -1380,6 +1382,34 @@
       }
     });
     document.getElementById("reloadConfigBtn").addEventListener("click", () => loadConfig().catch(err => setStatus("configStatus", err.message, "err")));
+    document.getElementById("checkTeldriveBtn").addEventListener("click", async () => {
+      const status = document.getElementById("teldriveTokenStatus");
+      status.className = "warn";
+      status.textContent = "Checking Teldrive token...";
+      try {
+        const data = await api("/api/teldrive/check", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({
+            token: document.getElementById("teldrive_token").value.trim(),
+            base_url: document.getElementById("teldrive_base_url").value.trim()
+          }),
+          timeout: 20000
+        });
+        const result = data.result || {};
+        if (result.ok) {
+          const user = result.userName || result.name || "current session";
+          status.className = "ok";
+          status.textContent = `Teldrive token is valid: ${user}${result.expires ? " | expires " + result.expires : ""}`;
+        } else {
+          status.className = "err";
+          status.textContent = result.message || "Teldrive token is invalid";
+        }
+      } catch (err) {
+        status.className = "err";
+        status.textContent = err.message;
+      }
+    });
     
     document.getElementById("saveCredentialsBtn").addEventListener("click", async () => {
       const username = document.getElementById("admin_username").value.trim();
