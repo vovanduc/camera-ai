@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import logging
+import shutil
+import subprocess
 import threading
 import time
 from pathlib import Path
@@ -116,6 +118,44 @@ def upload_event_video_safe(config: dict[str, Any], video_path: Path, camera_nam
         insert_event("teldrive_video_error", camera=camera_name, error=str(exc))
 
 
+def transcode_to_h264_mp4(source_path: Path, target_path: Path) -> Path:
+    ffmpeg = shutil.which("ffmpeg")
+    if not ffmpeg:
+        logger.warning("[RECORD] ffmpeg not found, keeping raw clip=%s", source_path.name)
+        return source_path
+
+    cmd = [
+        ffmpeg,
+        "-y",
+        "-i",
+        str(source_path),
+        "-an",
+        "-c:v",
+        "libx264",
+        "-profile:v",
+        "baseline",
+        "-level",
+        "3.1",
+        "-pix_fmt",
+        "yuv420p",
+        "-vf",
+        "scale=trunc(iw/2)*2:trunc(ih/2)*2",
+        "-movflags",
+        "+faststart",
+        str(target_path),
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
+    if result.returncode != 0 or not target_path.exists() or target_path.stat().st_size == 0:
+        logger.warning("[RECORD] ffmpeg h264 transcode failed: %s", (result.stderr or result.stdout)[-500:])
+        return source_path
+    try:
+        if source_path != target_path:
+            source_path.unlink()
+    except OSError:
+        pass
+    return target_path
+
+
 def record_and_upload_clip(
     config: dict[str, Any],
     camera: dict[str, Any],
@@ -129,7 +169,7 @@ def record_and_upload_clip(
     fps = 8.0
     deadline = time.time() + seconds
     writer = None
-    path: Path | None = None
+    raw_path: Path | None = None
     last_seq = -1
 
     try:
@@ -137,6 +177,7 @@ def record_and_upload_clip(
         stamp = time.strftime("%Y%m%dT%H%M%S")
         safe_camera = "".join(ch if ch.isalnum() or ch in ("-", "_") else "_" for ch in camera_name) or "camera"
         base_path = CLIPS_DIR / f"{stamp}_{safe_camera}"
+        final_path = base_path.with_suffix(".mp4")
 
         while time.time() < deadline and not stop_event.is_set():
             with lock:
@@ -148,8 +189,11 @@ def record_and_upload_clip(
             last_seq = seq
             if writer is None:
                 height, width = frame.shape[:2]
-                for suffix, codec in ((".mp4", "avc1"), (".mp4", "H264"), (".mp4", "mp4v"), (".avi", "MJPG")):
-                    candidate = base_path.with_suffix(suffix)
+                candidates = (
+                    (CLIPS_DIR / f"{base_path.name}_raw.avi", "MJPG"),
+                    (CLIPS_DIR / f"{base_path.name}_raw.mp4", "mp4v"),
+                )
+                for candidate, codec in candidates:
                     candidate_writer = cv2.VideoWriter(
                         str(candidate),
                         cv2.VideoWriter_fourcc(*codec),
@@ -157,7 +201,7 @@ def record_and_upload_clip(
                         (width, height),
                     )
                     if candidate_writer.isOpened():
-                        path = candidate
+                        raw_path = candidate
                         writer = candidate_writer
                         break
                     candidate_writer.release()
@@ -173,8 +217,9 @@ def record_and_upload_clip(
         if writer is not None:
             writer.release()
 
-    if path and path.exists() and path.stat().st_size > 0:
-        upload_event_video_safe(config, path, camera_name)
+    if raw_path and raw_path.exists() and raw_path.stat().st_size > 0:
+        video_path = transcode_to_h264_mp4(raw_path, final_path)
+        upload_event_video_safe(config, video_path, camera_name)
 
 
 def capture_snapshot(config: dict[str, Any], output_path: Path = SNAPSHOT_PATH) -> Path:

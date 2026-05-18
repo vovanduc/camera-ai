@@ -214,7 +214,14 @@ Sau khi upload thành công, app lưu lại `file id`, `name` và `path` của T
 Ảnh event local được cache bằng `ETag`/`Last-Modified` trong 24 giờ và thumbnail trong tab **Events** chỉ tải khi tab đang mở và ảnh gần vùng nhìn thấy.
 Proxy Teldrive thử stream file public trước, sau đó mới fallback Bearer token; nếu Teldrive trả `401/403`, app chuyển hướng về URL Teldrive gốc để trình duyệt dùng session Teldrive hiện có.
 
-Clip ghi hình dùng OpenCV `VideoWriter`, ưu tiên `.mp4` với `avc1`/`H264`, sau đó mới fallback `mp4v`, và cuối cùng là `.avi` (`MJPG`) nếu codec MP4 không khả dụng. Để browser play trực tiếp ổn định, máy chạy app cần có encoder H.264 hoạt động trong OpenCV/runtime; không cần thêm thư viện frontend riêng. Teldrive upload qua API có thể vẫn hiển thị như file/document trong Telegram storage channel; muốn Telegram preview chắc chắn theo kiểu video thì cần gửi thêm một bản qua Telegram Bot API `sendVideo`.
+Clip ghi hình được ghi tạm bằng OpenCV rồi transcode bằng `ffmpeg` sang MP4 H.264 (`libx264`, baseline, `yuv420p`, `+faststart`) nếu máy có `ffmpeg` trong `PATH`. Đây là format phù hợp cho Chrome/HTML5 video/Teldrive preview. Nếu thiếu `ffmpeg`, app sẽ giữ clip raw từ OpenCV và browser có thể không play được dù file tải về vẫn xem được bằng VLC. Trên Ubuntu/Debian VPS nên cài:
+
+```bash
+sudo apt update
+sudo apt install -y ffmpeg
+```
+
+Teldrive upload qua API có thể vẫn hiển thị như file/document trong Telegram storage channel; muốn Telegram preview chắc chắn theo kiểu video thì cần gửi thêm một bản qua Telegram Bot API `sendVideo`.
 
 Thứ tự ưu tiên **live view**:
 
