@@ -443,6 +443,39 @@
     .ok { color: var(--ok); }
     .err { color: var(--danger); }
     .warn { color: var(--warn); }
+    .toast-stack {
+      position: fixed;
+      right: 22px;
+      bottom: 22px;
+      z-index: 1000;
+      display: grid;
+      gap: 10px;
+      width: min(380px, calc(100vw - 32px));
+      pointer-events: none;
+    }
+    .toast {
+      border: 1px solid var(--line);
+      border-left: 4px solid var(--accent);
+      border-radius: 8px;
+      background: rgba(13, 23, 34, .96);
+      color: var(--text);
+      padding: 12px 14px;
+      box-shadow: 0 14px 32px rgba(0,0,0,.38);
+      font-weight: 700;
+      transform: translateY(8px);
+      opacity: 0;
+      animation: toast-in .18s ease-out forwards;
+    }
+    .toast.ok { border-left-color: var(--ok); }
+    .toast.warn { border-left-color: var(--warn); }
+    .toast.err { border-left-color: var(--danger); }
+    .toast.hide { animation: toast-out .16s ease-in forwards; }
+    @keyframes toast-in {
+      to { transform: translateY(0); opacity: 1; }
+    }
+    @keyframes toast-out {
+      to { transform: translateY(8px); opacity: 0; }
+    }
     .hidden { display: none; }
     @media (max-width: 760px) {
       main { padding: 14px; }
@@ -878,6 +911,7 @@
         <button id="modalPromptSaveBtn" class="primary" type="button">Save</button>
       </div>
     </dialog>
+    <div id="toastStack" class="toast-stack" aria-live="polite" aria-atomic="true"></div>
   </main>
 
   <script>
@@ -906,10 +940,26 @@
     function setText(id, value) {
       document.getElementById(id).textContent = value || "-";
     }
-    function setStatus(id, text, cls = "") {
+    function showToast(text, cls = "") {
+      if (!text) return;
+      const stack = document.getElementById("toastStack");
+      if (!stack) return;
+      const toast = document.createElement("div");
+      toast.className = `toast ${cls || ""}`.trim();
+      toast.textContent = text;
+      stack.append(toast);
+      setTimeout(() => {
+        toast.classList.add("hide");
+        toast.addEventListener("animationend", () => toast.remove(), {once: true});
+      }, cls === "err" ? 5200 : 3200);
+    }
+    function setStatus(id, text, cls = "", toast = true) {
       const el = document.getElementById(id);
-      el.className = cls;
-      el.textContent = text;
+      if (el) {
+        el.className = cls;
+        el.textContent = text;
+      }
+      if (toast) showToast(text, cls);
     }
     async function api(path, options = {}) {
       const controller = new AbortController();
@@ -985,7 +1035,7 @@
       setText("lastVerify", s.last_verify_at || "-");
       setText("lastCamera", s.last_camera || "-");
       setText("lastAlert", s.last_alert_at || "-");
-      if (s.last_error) setStatus("actionStatus", s.last_error, "err");
+      if (s.last_error) setStatus("actionStatus", s.last_error, "err", false);
 
       if (data.system) {
         setText("cpuPercent", data.system.cpu_percent.toFixed(1));
@@ -1058,7 +1108,7 @@
         }
         body.append(row);
       }
-      setStatus("eventsStatus", `Loaded ${events.length} events`, "ok");
+      setStatus("eventsStatus", `Loaded ${events.length} events`, "ok", false);
       hydrateEventImages();
       renderDashboard();
     }
@@ -1208,7 +1258,7 @@
         const data = await api(`/api/recordings?camera=${encodeURIComponent(camera)}&date_from=${encodeURIComponent(dateFrom)}&date_to=${encodeURIComponent(dateTo)}`, {timeout: 10000});
         renderRecordings(data.recordings || []);
       } catch (err) {
-        setStatus("recordingsStatus", err.message, "err");
+        setStatus("recordingsStatus", err.message, "err", false);
       }
     }
     function renderRecordings(recordings) {
@@ -1219,7 +1269,7 @@
         empty.className = "card";
         empty.innerHTML = "<b>No recordings</b><p>Try another camera or time range.</p>";
         body.append(empty);
-        setStatus("recordingsStatus", "Loaded 0 recording(s)", "warn");
+        setStatus("recordingsStatus", "Loaded 0 recording(s)", "warn", false);
         return;
       }
       for (const item of recordings) {
@@ -1276,7 +1326,7 @@
         card.append(video, content);
         body.append(card);
       }
-      setStatus("recordingsStatus", `Loaded ${recordings.length} recording(s)`, recordings.length ? "ok" : "warn");
+      setStatus("recordingsStatus", `Loaded ${recordings.length} recording(s)`, recordings.length ? "ok" : "warn", false);
     }
     function normalizeCamera(camera = {}) {
       return {
@@ -1529,6 +1579,7 @@
         });
         renderConfig(data.config);
         setStatus(statusId, data.message || "Saved", "ok");
+        await loadStatus();
       } catch (err) {
         setStatus(statusId, err.message, "err");
       }
@@ -1577,7 +1628,7 @@
         }
         grid.append(card);
       }
-      setStatus("liveStatus", visible.length ? `Showing ${visible.length} camera(s)` : "No enabled cameras", visible.length ? "ok" : "warn");
+      setStatus("liveStatus", visible.length ? `Showing ${visible.length} camera(s)` : "No enabled cameras", visible.length ? "ok" : "warn", false);
     }
 
     document.querySelectorAll(".tab-btn").forEach(btn => btn.addEventListener("click", () => showTab(btn.dataset.tab)));
@@ -1593,6 +1644,7 @@
         });
         renderConfig(data.config);
         setStatus("configStatus", data.message || "Saved", "ok");
+        await loadStatus();
       } catch (err) {
         setStatus("configStatus", err.message, "err");
       }
@@ -1602,6 +1654,7 @@
       const status = document.getElementById("teldriveTokenStatus");
       status.className = "warn";
       status.textContent = "Checking Teldrive token...";
+      showToast("Checking Teldrive token...", "warn");
       try {
         const data = await api("/api/teldrive/check", {
           method: "POST",
@@ -1617,13 +1670,16 @@
           const user = result.userName || result.name || "current session";
           status.className = "ok";
           status.textContent = `Teldrive token is valid: ${user}${result.expires ? " | expires " + result.expires : ""}`;
+          showToast(status.textContent, "ok");
         } else {
           status.className = "err";
           status.textContent = result.message || "Teldrive token is invalid";
+          showToast(status.textContent, "err");
         }
       } catch (err) {
         status.className = "err";
         status.textContent = err.message;
+        showToast(err.message, "err");
       }
     });
     

@@ -242,8 +242,16 @@ async def get_config(_: str = Depends(auth.require_auth)):
 async def save_config(new_config: dict[str, Any] = Body(...), _: str = Depends(auth.require_auth)):
     try:
         updated = config.write_config(new_config)
-        monitor.restart_monitor(updated)
-        return {"success": True, "config": updated, "message": "Settings saved and monitor restarted"}
+        state = monitor.read_state()
+        if state.get("running"):
+            monitor.restart_monitor(updated)
+            message = "Settings saved and monitor restarted"
+        elif monitor.has_enabled_rtsp_camera(updated):
+            result = monitor.start_monitor(updated)
+            message = "Settings saved and monitor started" if result == "started" else f"Settings saved and monitor {result}"
+        else:
+            message = "Settings saved"
+        return {"success": True, "config": updated, "message": message}
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 

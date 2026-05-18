@@ -336,6 +336,10 @@ def _enabled_rtsp_cameras(config: dict[str, Any]) -> list[dict[str, Any]]:
     return [camera for camera in all_cameras if camera.get("rtsp_url")]
 
 
+def has_enabled_rtsp_camera(config: dict[str, Any]) -> bool:
+    return bool(_enabled_rtsp_cameras(config))
+
+
 def _monitor_loop(config: dict[str, Any]) -> None:
     cameras = _enabled_rtsp_cameras(config)
     if not cameras:
