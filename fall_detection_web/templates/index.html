@@ -931,6 +931,7 @@
     let liveLayout = "2";
     const EVENTS_PAGE_LIMIT = 25;
     let eventImageObserver = null;
+    const persistentStatusIds = new Set(["teldriveTokenStatus"]);
     const numericIds = [
       "confidence", "verify_interval", "alert_cooldown", "frame_skip", "loop_sleep", "yolo_imgsz",
       "teldrive_record_seconds", "teldrive_record_cooldown"
@@ -960,9 +961,12 @@
     }
     function setStatus(id, text, cls = "", toast = true) {
       const el = document.getElementById(id);
-      if (el) {
+      if (el && persistentStatusIds.has(id)) {
         el.className = cls;
         el.textContent = text;
+      } else if (el) {
+        el.className = "";
+        el.textContent = "";
       }
       if (toast) showToast(text, cls);
     }
