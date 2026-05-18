@@ -10,6 +10,7 @@ from email.utils import formatdate, parsedate_to_datetime
 from pathlib import Path
 from typing import Any
 
+import requests
 from fastapi import Body, Depends, FastAPI, Form, HTTPException, Request, Response, status
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
@@ -162,16 +163,32 @@ async def event_image(request: Request, filename: str, _: str = Depends(auth.req
 
 
 @app.get("/api/teldrive/file/{file_id}/{file_name}")
-async def teldrive_file(file_id: str, file_name: str, _: str = Depends(auth.require_auth)):
+async def teldrive_file(request: Request, file_id: str, file_name: str, _: str = Depends(auth.require_auth)):
     try:
         c = config.read_config()
-        response = teldrive.download_file(c, file_id, file_name)
+        response = teldrive.download_file(c, file_id, file_name, request.headers.get("range", ""))
         media_type = response.headers.get("content-type", "application/octet-stream")
+        headers = {"Cache-Control": "private, max-age=300"}
+        for name in ("accept-ranges", "content-length", "content-range", "etag", "last-modified", "content-disposition"):
+            value = response.headers.get(name)
+            if value:
+                headers[name] = value
+        def stream_body():
+            try:
+                yield from response.iter_content(chunk_size=1024 * 256)
+            finally:
+                response.close()
         return StreamingResponse(
-            response.iter_content(chunk_size=1024 * 256),
+            stream_body(),
+            status_code=response.status_code,
             media_type=media_type,
-            headers={"Cache-Control": "private, max-age=300"},
+            headers=headers,
         )
+    except requests.HTTPError as exc:
+        if exc.response is not None and exc.response.status_code in (401, 403):
+            c = config.read_config()
+            return RedirectResponse(url=teldrive.file_url(c, file_id, file_name), status_code=status.HTTP_302_FOUND)
+        raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 

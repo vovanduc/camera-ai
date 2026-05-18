@@ -7,6 +7,7 @@ import mimetypes
 import uuid
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 import requests
 
@@ -188,10 +189,28 @@ def upload_event_video(config: dict[str, Any], local_path: Path, camera_name: st
     return upload_file(config, local_path, remote_folder(config, camera_name, "videos"))
 
 
-def download_file(config: dict[str, Any], file_id: str, file_name: str) -> requests.Response:
+def file_url(config: dict[str, Any], file_id: str, file_name: str) -> str:
+    return f"{_api_base(config)}/files/{file_id}/{quote(file_name, safe='')}"
+
+
+def download_file(config: dict[str, Any], file_id: str, file_name: str, range_header: str = "") -> requests.Response:
+    headers = {}
+    if range_header:
+        headers["Range"] = range_header
     response = _session.get(
-        f"{_api_base(config)}/files/{file_id}/{file_name}",
-        headers=_headers(config),
+        file_url(config, file_id, file_name),
+        headers=headers,
+        stream=True,
+        timeout=60,
+    )
+    if response.status_code not in (401, 403) or not str(config.get("teldrive_token", "")).strip():
+        response.raise_for_status()
+        return response
+    response.close()
+    auth_headers = {**_headers(config), **headers}
+    response = _session.get(
+        file_url(config, file_id, file_name),
+        headers=auth_headers,
         stream=True,
         timeout=60,
     )

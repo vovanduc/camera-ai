@@ -210,6 +210,7 @@ Mặc định app dùng `https://teldrive.minhhungtsbd.me` và lưu theo cấu t
 Sau khi upload thành công, app lưu lại `file id`, `name` và `path` của Teldrive vào event. Cột ảnh trong tab **Events** sẽ dùng proxy Teldrive nếu có metadata upload, nếu chưa có thì fallback về ảnh local trong `data/event_images/`. Tab **Recordings** dùng metadata video đã lưu để xem lại/lọc theo camera và thời gian.
 
 Ảnh event local được cache bằng `ETag`/`Last-Modified` trong 24 giờ và thumbnail trong tab **Events** chỉ tải khi tab đang mở và ảnh gần vùng nhìn thấy.
+Proxy Teldrive thử stream file public trước, sau đó mới fallback Bearer token; nếu Teldrive trả `401/403`, app chuyển hướng về URL Teldrive gốc để trình duyệt dùng session Teldrive hiện có.
 
 Clip ghi hình dùng OpenCV `VideoWriter`, ưu tiên `.mp4` (`mp4v`) để dễ xem trực tiếp trên web/Teldrive hơn và fallback `.avi` (`MJPG`) nếu codec MP4 không khả dụng. Teldrive upload qua API có thể vẫn hiển thị như file/document trong Telegram storage channel; muốn Telegram preview chắc chắn theo kiểu video thì cần gửi thêm một bản qua Telegram Bot API `sendVideo`.
 
