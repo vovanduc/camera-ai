@@ -300,7 +300,7 @@ async def api_stop_monitor(_: str = Depends(auth.require_auth)):
 @app.get("/api/events")
 async def get_events(
     page: int = 1,
-    limit: int = 50,
+    limit: int = 10,
     ai_result: str | None = None,
     camera: str | None = None,
     _: str = Depends(auth.require_auth)
@@ -308,7 +308,7 @@ async def get_events(
     if page < 1:
         page = 1
     if limit < 1 or limit > 500:
-        limit = 50
+        limit = 10
         
     # Clean up empty strings from query params
     if ai_result == "" or ai_result == "All":
@@ -331,14 +331,29 @@ async def get_events(
 
 @app.get("/api/recordings")
 async def get_recordings(
+    page: int = 1,
+    limit: int = 10,
     camera: str | None = None,
     date_from: str | None = None,
     date_to: str | None = None,
     _: str = Depends(auth.require_auth)
 ):
+    if page < 1:
+        page = 1
+    if limit < 1 or limit > 500:
+        limit = 10
     if camera == "" or camera == "All":
         camera = None
-    return {"success": True, "recordings": db.get_recordings(camera=camera, date_from=date_from, date_to=date_to)}
+    offset = (page - 1) * limit
+    recordings = db.get_recordings(limit=limit, offset=offset, camera=camera, date_from=date_from, date_to=date_to)
+    total = db.get_recordings_total(camera=camera, date_from=date_from, date_to=date_to)
+    return {
+        "success": True,
+        "recordings": recordings,
+        "total": total,
+        "page": page,
+        "limit": limit,
+    }
 
 @app.delete("/api/events")
 async def clear_events(_: str = Depends(auth.require_auth)):

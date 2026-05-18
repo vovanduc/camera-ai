@@ -185,6 +185,34 @@
       padding-top: 14px;
       margin-top: 18px;
     }
+    .pager {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .pager-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .page-size {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-weight: 700;
+      font-size: 12px;
+    }
+    .page-size select {
+      width: auto;
+      min-width: 82px;
+      padding: 8px 10px;
+    }
     .status-pill {
       display: inline-flex;
       align-items: center;
@@ -517,6 +545,9 @@
       .grid, .cards { grid-template-columns: 1fr; }
       .teldrive-grid { grid-template-columns: 1fr; }
       .settings-actions { justify-content: flex-start; }
+      .pager { align-items: stretch; flex-direction: column; }
+      .pager-controls { align-items: stretch; flex-direction: column; }
+      .page-size { justify-content: space-between; }
       .live-grid.cols-2,
       .live-grid.cols-3 { grid-template-columns: 1fr; }
       .summary-item { grid-template-columns: 1fr; }
@@ -829,12 +860,21 @@
           </thead>
           <tbody id="eventsBody"></tbody>
         </table>
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px;">
-          <div>
-            <button id="prevPageBtn" type="button" disabled>Previous</button>
-            <button id="nextPageBtn" type="button" disabled>Next</button>
+        <div class="pager">
+          <div class="pager-controls">
+            <button id="prevPageBtn" type="button" disabled>Trước</button>
+            <button id="nextPageBtn" type="button" disabled>Sau</button>
+            <label class="page-size">
+              Hiển thị
+              <select id="eventPageSize">
+                <option value="10" selected>10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </label>
           </div>
-          <div id="paginationInfo" style="color: var(--muted); font-size: 13px;">Page 1</div>
+          <div id="paginationInfo">Trang 1</div>
         </div>
       </div>
     </section>
@@ -850,6 +890,22 @@
           <span id="recordingsStatus"></span>
         </div>
         <div id="recordingsBody" class="recording-grid"></div>
+        <div class="pager">
+          <div class="pager-controls">
+            <button id="prevRecordingPageBtn" type="button" disabled>Trước</button>
+            <button id="nextRecordingPageBtn" type="button" disabled>Sau</button>
+            <label class="page-size">
+              Hiển thị
+              <select id="recordingPageSize">
+                <option value="10" selected>10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </label>
+          </div>
+          <div id="recordingPaginationInfo">Trang 1</div>
+        </div>
       </div>
     </section>
 
@@ -965,8 +1021,9 @@
     let latestStatus = {};
     let eventsCurrentPage = 1;
     let eventsTotalPages = 1;
+    let recordingsCurrentPage = 1;
+    let recordingsTotalPages = 1;
     let liveLayout = "2";
-    const EVENTS_PAGE_LIMIT = 25;
     let eventImageObserver = null;
     const persistentStatusIds = new Set(["teldriveTokenStatus"]);
     const numericIds = [
@@ -1107,12 +1164,12 @@
       
       eventsCurrentPage = data.page || 1;
       const total = data.total || 0;
-      const limit = data.limit || EVENTS_PAGE_LIMIT;
+      const limit = data.limit || Number(document.getElementById("eventPageSize")?.value || 10);
       eventsTotalPages = Math.ceil(total / limit) || 1;
       
       document.getElementById("prevPageBtn").disabled = eventsCurrentPage <= 1;
       document.getElementById("nextPageBtn").disabled = eventsCurrentPage >= eventsTotalPages;
-      document.getElementById("paginationInfo").textContent = `Page ${eventsCurrentPage} of ${eventsTotalPages} (${total} events)`;
+      document.getElementById("paginationInfo").textContent = `Trang ${eventsCurrentPage}/${eventsTotalPages} (${total} event)`;
 
       const body = document.getElementById("eventsBody");
       body.innerHTML = "";
@@ -1283,7 +1340,8 @@
       try {
         const camera = document.getElementById("eventFilterCamera") ? document.getElementById("eventFilterCamera").value : "";
         const aiResult = document.getElementById("eventFilterAI") ? document.getElementById("eventFilterAI").value : "";
-        const data = await api(`/api/events?page=${eventsCurrentPage}&limit=${EVENTS_PAGE_LIMIT}&camera=${encodeURIComponent(camera)}&ai_result=${encodeURIComponent(aiResult)}`, {timeout: 10000});
+        const limit = Number(document.getElementById("eventPageSize")?.value || 10);
+        const data = await api(`/api/events?page=${eventsCurrentPage}&limit=${limit}&camera=${encodeURIComponent(camera)}&ai_result=${encodeURIComponent(aiResult)}`, {timeout: 10000});
         renderEvents(data);
       } catch(err) {
         setStatus("eventsStatus", err.message, "err");
@@ -1300,13 +1358,23 @@
         const camera = document.getElementById("recordingFilterCamera").value;
         const dateFrom = toUtcIsoFromLocalInput(document.getElementById("recordingDateFrom").value);
         const dateTo = toUtcIsoFromLocalInput(document.getElementById("recordingDateTo").value);
-        const data = await api(`/api/recordings?camera=${encodeURIComponent(camera)}&date_from=${encodeURIComponent(dateFrom)}&date_to=${encodeURIComponent(dateTo)}`, {timeout: 10000});
-        renderRecordings(data.recordings || []);
+        const limit = Number(document.getElementById("recordingPageSize")?.value || 10);
+        const data = await api(`/api/recordings?page=${recordingsCurrentPage}&limit=${limit}&camera=${encodeURIComponent(camera)}&date_from=${encodeURIComponent(dateFrom)}&date_to=${encodeURIComponent(dateTo)}`, {timeout: 10000});
+        renderRecordings(data);
       } catch (err) {
         setStatus("recordingsStatus", err.message, "err", false);
       }
     }
-    function renderRecordings(recordings) {
+    function renderRecordings(data) {
+      const recordings = data.recordings || [];
+      recordingsCurrentPage = data.page || 1;
+      const total = data.total || 0;
+      const limit = data.limit || Number(document.getElementById("recordingPageSize")?.value || 10);
+      recordingsTotalPages = Math.ceil(total / limit) || 1;
+      document.getElementById("prevRecordingPageBtn").disabled = recordingsCurrentPage <= 1;
+      document.getElementById("nextRecordingPageBtn").disabled = recordingsCurrentPage >= recordingsTotalPages;
+      document.getElementById("recordingPaginationInfo").textContent = `Trang ${recordingsCurrentPage}/${recordingsTotalPages} (${total} video)`;
+
       const body = document.getElementById("recordingsBody");
       body.innerHTML = "";
       if (!recordings.length) {
@@ -1820,8 +1888,30 @@
       eventsCurrentPage = 1;
       loadEvents();
     });
-    document.getElementById("refreshRecordingsBtn").addEventListener("click", loadRecordings);
-    document.getElementById("recordingFilterCamera").addEventListener("change", loadRecordings);
+    document.getElementById("eventPageSize").addEventListener("change", () => {
+      eventsCurrentPage = 1;
+      loadEvents();
+    });
+    document.getElementById("refreshRecordingsBtn").addEventListener("click", () => {
+      recordingsCurrentPage = 1;
+      loadRecordings();
+    });
+    document.getElementById("recordingFilterCamera").addEventListener("change", () => {
+      recordingsCurrentPage = 1;
+      loadRecordings();
+    });
+    document.getElementById("recordingDateFrom").addEventListener("change", () => {
+      recordingsCurrentPage = 1;
+      loadRecordings();
+    });
+    document.getElementById("recordingDateTo").addEventListener("change", () => {
+      recordingsCurrentPage = 1;
+      loadRecordings();
+    });
+    document.getElementById("recordingPageSize").addEventListener("change", () => {
+      recordingsCurrentPage = 1;
+      loadRecordings();
+    });
     document.getElementById("prevPageBtn").addEventListener("click", () => {
       if (eventsCurrentPage > 1) {
         eventsCurrentPage--;
@@ -1832,6 +1922,18 @@
       if (eventsCurrentPage < eventsTotalPages) {
         eventsCurrentPage++;
         loadEvents();
+      }
+    });
+    document.getElementById("prevRecordingPageBtn").addEventListener("click", () => {
+      if (recordingsCurrentPage > 1) {
+        recordingsCurrentPage--;
+        loadRecordings();
+      }
+    });
+    document.getElementById("nextRecordingPageBtn").addEventListener("click", () => {
+      if (recordingsCurrentPage < recordingsTotalPages) {
+        recordingsCurrentPage++;
+        loadRecordings();
       }
     });
 

@@ -312,7 +312,13 @@ def get_events(
     return events
 
 
-def get_recordings(limit: int = 100, camera: str | None = None, date_from: str | None = None, date_to: str | None = None) -> list[dict[str, Any]]:
+def get_recordings(
+    limit: int = 100,
+    offset: int = 0,
+    camera: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+) -> list[dict[str, Any]]:
     query = "SELECT * FROM events WHERE teldrive_video_id IS NOT NULL AND teldrive_video_id != ''"
     params: list[Any] = []
     if camera:
@@ -324,8 +330,8 @@ def get_recordings(limit: int = 100, camera: str | None = None, date_from: str |
     if date_to:
         query += " AND time <= ?"
         params.append(date_to)
-    query += " ORDER BY id DESC LIMIT ?"
-    params.append(limit)
+    query += " ORDER BY id DESC LIMIT ? OFFSET ?"
+    params.extend([limit, offset])
     with get_conn() as conn:
         rows = conn.execute(query, params).fetchall()
     recordings = [dict(row) for row in rows]
@@ -333,6 +339,22 @@ def get_recordings(limit: int = 100, camera: str | None = None, date_from: str |
         name = quote(str(item["teldrive_video_name"]), safe="")
         item["video_url"] = f"/api/teldrive/file/{item['teldrive_video_id']}/{name}"
     return recordings
+
+
+def get_recordings_total(camera: str | None = None, date_from: str | None = None, date_to: str | None = None) -> int:
+    query = "SELECT COUNT(*) FROM events WHERE teldrive_video_id IS NOT NULL AND teldrive_video_id != ''"
+    params: list[Any] = []
+    if camera:
+        query += " AND camera = ?"
+        params.append(camera)
+    if date_from:
+        query += " AND time >= ?"
+        params.append(date_from)
+    if date_to:
+        query += " AND time <= ?"
+        params.append(date_to)
+    with get_conn() as conn:
+        return conn.execute(query, params).fetchone()[0]
 
 
 def get_events_total(ai_result: str | None = None, camera: str | None = None) -> int:
