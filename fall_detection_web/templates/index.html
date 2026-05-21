@@ -1211,13 +1211,32 @@
       }
     }
 
+    function parseViewRoute(value) {
+      const raw = String(value || "dashboard").replace(/^#/, "");
+      const [viewName, ...cameraParts] = raw.split("/");
+      let camera = cameraParts.join("/");
+      if (camera) {
+        try { camera = decodeURIComponent(camera); } catch { /* Keep raw camera route. */ }
+      }
+      return { view: viewName || "dashboard", camera };
+    }
+
     function switchView(name) {
+      const route = parseViewRoute(name);
+      name = route.view;
+      if (name === "camera-detail" && route.camera) {
+        state.selectedCameraIndex = findCameraIndexByRouteName(route.camera);
+      }
       if (!pages[name]) name = "dashboard";
       document.querySelectorAll(".view").forEach(el => el.classList.toggle("active", el.id === `view-${name}`));
       document.querySelectorAll(".nav-btn").forEach(el => el.classList.toggle("active", el.dataset.view === name));
       setText("pageTitle", pages[name][0]);
       setText("pageSubtitle", pages[name][1]);
-      history.replaceState(null, "", `#${name}`);
+      const cameraRoute = name === "camera-detail"
+        ? route.camera || (state.selectedCameraIndex >= 0 ? cameraName(state.cameras[state.selectedCameraIndex], state.selectedCameraIndex) : "")
+        : "";
+      const nextHash = cameraRoute ? `#${name}/${encodeURIComponent(cameraRoute)}` : `#${name}`;
+      history.replaceState(null, "", nextHash);
       if (name === "live") renderLive();
       if (name === "camera-detail") {
         renderCameraDetail();
@@ -1251,6 +1270,16 @@
     }
 
     function cameraName(camera, index) { return camera.name || camera.go2rtc_src || camera.rtsp_url || `Camera ${index + 1}`; }
+    function findCameraIndexByRouteName(routeName) {
+      const needle = String(routeName || "").trim();
+      if (!needle) return -1;
+      return state.cameras.findIndex((camera, index) => {
+        const aliases = [cameraName(camera, index), camera.name, camera.go2rtc_src, camera.rtsp_url, camera.live_url]
+          .filter(Boolean)
+          .map(value => String(value).trim());
+        return aliases.includes(needle);
+      });
+    }
     function promptTitle(id) {
       const prompt = state.prompts.find(item => item.id === id);
       return prompt ? prompt.title || "Untitled prompt" : "Default prompt";
@@ -1272,12 +1301,17 @@
       state.config = data.config || {};
       state.cameras = Array.isArray(state.config.cameras) ? state.config.cameras : [];
       state.prompts = Array.isArray(state.config.prompts) ? state.config.prompts : [];
+      const route = parseViewRoute(location.hash || "#dashboard");
+      if (route.view === "camera-detail" && route.camera) {
+        state.selectedCameraIndex = findCameraIndexByRouteName(route.camera);
+      }
       fillSettings(state.config);
       renderCameras();
       renderPrompts();
       renderCameraFilters();
       renderDashboard();
       renderLive();
+      if (route.view === "camera-detail") renderCameraDetail();
     }
 
     async function loadStatus() {
@@ -1429,7 +1463,7 @@
       const name = cameraName(state.cameras[index], index);
       $("eventFilterCamera").value = name;
       $("recordingFilterCamera").value = name;
-      switchView("camera-detail");
+      switchView(`camera-detail/${encodeURIComponent(name)}`);
     }
 
     function renderCameraDetail() {
@@ -1992,10 +2026,10 @@
     $("openViewerBtn").addEventListener("click", () => { if (state.viewerUrl) window.open(state.viewerUrl, "_blank"); });
     $("viewerDialog").addEventListener("close", () => { $("viewerBody").innerHTML = ""; });
 
-    window.addEventListener("hashchange", () => switchView((location.hash || "#dashboard").slice(1)));
+    window.addEventListener("hashchange", () => switchView(location.hash || "#dashboard"));
 
     (async function init() {
-      switchView((location.hash || "#dashboard").slice(1));
+      switchView(location.hash || "#dashboard");
       try {
         await loadConfig();
         await loadStatus();
