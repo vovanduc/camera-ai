@@ -370,6 +370,16 @@
       display: grid;
       gap: 12px;
     }
+    .camera-list-card {
+      grid-template-columns: 220px minmax(0, 1fr);
+      align-items: start;
+      gap: 14px;
+    }
+    .camera-card-main {
+      min-width: 0;
+      display: grid;
+      gap: 12px;
+    }
     .camera-title { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
     .camera-open { cursor: pointer; border-radius: var(--radius); }
     .camera-open:focus-visible { outline: 3px solid rgba(34, 197, 94, .22); outline-offset: 4px; }
@@ -548,6 +558,7 @@
       .nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .cols-4, .cols-3, .cols-2, .form-grid, .form-grid.three, .live-grid.cols-2, .live-grid.cols-3 { grid-template-columns: 1fr; }
       .detail-live { grid-template-columns: 1fr; }
+      .camera-list-card { grid-template-columns: 1fr; }
       .span-2, .span-3 { grid-column: auto; }
       .top-actions, .actions, .split { align-items: stretch; flex-direction: column; }
       .btn, .status-chip { width: 100%; }
@@ -1410,30 +1421,32 @@
         return;
       }
       grid.innerHTML = state.cameras.map((camera, index) => `
-        <article class="camera-card">
+        <article class="camera-card camera-list-card">
           <div class="camera-thumb camera-open" data-index="${index}" role="button" tabindex="0">
             ${camera.rtsp_url || camera.go2rtc_src
               ? `<img src="${esc(cameraSnapshotUrl(index))}" loading="lazy" alt="${esc(cameraName(camera, index))} snapshot" onerror="this.replaceWith(Object.assign(document.createElement('div'), {className: 'empty', textContent: 'Snapshot unavailable'}))">`
               : '<div class="empty">No snapshot source</div>'}
           </div>
-          <div class="camera-title camera-open" data-index="${index}" role="button" tabindex="0">
-            <div>
-              <h3>${esc(cameraName(camera, index))}</h3>
-              <p>${esc(camera.rtsp_url || camera.go2rtc_src || camera.live_url || "No source configured")}</p>
+          <div class="camera-card-main">
+            <div class="camera-title camera-open" data-index="${index}" role="button" tabindex="0">
+              <div>
+                <h3>${esc(cameraName(camera, index))}</h3>
+                <p>${esc(camera.rtsp_url || camera.go2rtc_src || camera.live_url || "No source configured")}</p>
+              </div>
+              <span class="badge ${camera.enabled ? "good" : "bad"}">${camera.enabled ? "Enabled" : "Disabled"}</span>
             </div>
-            <span class="badge ${camera.enabled ? "good" : "bad"}">${camera.enabled ? "Enabled" : "Disabled"}</span>
-          </div>
-          <div class="camera-meta-stack">
-            <span class="badge">Prompt: ${esc(promptTitle(camera.prompt_id))}</span>
-            <span class="badge ${camera.teldrive_record_enabled ? "info" : ""}">Record: ${camera.teldrive_record_enabled ? "On" : "Off"}</span>
-          </div>
-          <div class="actions">
-            <button class="btn small camera-open-btn" data-index="${index}" type="button">Open detail</button>
-            <button class="btn small camera-toggle" data-index="${index}" type="button">${camera.enabled ? "Disable" : "Enable"}</button>
-            <button class="btn small camera-snapshot" data-index="${index}" type="button">Snapshot</button>
-            <button class="btn small camera-test" data-index="${index}" type="button">Test AI</button>
-            <button class="btn small camera-edit" data-index="${index}" type="button">Edit</button>
-            <button class="btn small danger camera-delete" data-index="${index}" type="button">Delete</button>
+            <div class="camera-meta-stack">
+              <span class="badge">Prompt: ${esc(promptTitle(camera.prompt_id))}</span>
+              <span class="badge ${camera.teldrive_record_enabled ? "info" : ""}">Record: ${camera.teldrive_record_enabled ? "On" : "Off"}</span>
+            </div>
+            <div class="actions">
+              <button class="btn small camera-open-btn" data-index="${index}" type="button">Open detail</button>
+              <button class="btn small camera-toggle" data-index="${index}" type="button">${camera.enabled ? "Disable" : "Enable"}</button>
+              <button class="btn small camera-snapshot" data-index="${index}" type="button">Snapshot</button>
+              <button class="btn small camera-test" data-index="${index}" type="button">Test AI</button>
+              <button class="btn small camera-edit" data-index="${index}" type="button">Edit</button>
+              <button class="btn small danger camera-delete" data-index="${index}" type="button">Delete</button>
+            </div>
           </div>
         </article>
       `).join("");
