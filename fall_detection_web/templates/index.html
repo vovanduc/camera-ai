@@ -377,8 +377,11 @@
     }
     .camera-card-main {
       min-width: 0;
-      display: grid;
-      gap: 12px;
+      min-height: 124px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 10px;
     }
     .camera-title { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
     .camera-open { cursor: pointer; border-radius: var(--radius); }
@@ -411,14 +414,17 @@
     }
     .camera-meta-stack {
       display: grid;
-      grid-template-columns: minmax(0, 1fr);
+      grid-template-columns: repeat(2, minmax(140px, 240px));
       gap: 8px;
+      align-items: center;
     }
     .camera-meta-stack .badge {
       width: 100%;
       justify-content: space-between;
       border-radius: 8px;
       min-height: 32px;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .live-toolbar { margin-bottom: 14px; }
@@ -559,6 +565,8 @@
       .cols-4, .cols-3, .cols-2, .form-grid, .form-grid.three, .live-grid.cols-2, .live-grid.cols-3 { grid-template-columns: 1fr; }
       .detail-live { grid-template-columns: 1fr; }
       .camera-list-card { grid-template-columns: 1fr; }
+      .camera-card-main { min-height: auto; }
+      .camera-meta-stack { grid-template-columns: 1fr; }
       .span-2, .span-3 { grid-column: auto; }
       .top-actions, .actions, .split { align-items: stretch; flex-direction: column; }
       .btn, .status-chip { width: 100%; }
