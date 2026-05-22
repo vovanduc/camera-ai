@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Camera Detail - Fall Detection</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.ico">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@500;600;700&family=Fira+Sans:wght@400;500;600;700&display=swap');
+    :root {
+      --bg:#020617; --surface:#0f172a; --surface-2:#111c2f; --line:#26364d; --line-strong:#3d506c;
+      --text:#f8fafc; --muted:#9aa8bd; --good:#22c55e; --info:#38bdf8; --bad:#f43f5e; --warn:#f59e0b;
+      --radius:8px; --sidebar:272px;
+    }
+    * { box-sizing:border-box; }
+    body {
+      margin:0; min-height:100vh; color:var(--text);
+      font:14px/1.45 "Fira Sans", Arial, sans-serif;
+      background:radial-gradient(circle at 18% -12%, rgba(56,189,248,.15), transparent 31rem), linear-gradient(180deg,#020617,#07111f);
+    }
+    h1,h2,h3,p { margin:0; } h1,h2,h3,.mono { font-family:"Fira Code", ui-monospace, Consolas, monospace; }
+    a { color:var(--info); text-decoration:none; } button,input,select { font:inherit; } button,select { cursor:pointer; }
+    .app { min-height:100vh; display:grid; grid-template-columns:var(--sidebar) minmax(0,1fr); }
+    .sidebar { position:sticky; top:0; height:100vh; padding:18px; border-right:1px solid var(--line); background:rgba(2,6,23,.78); display:flex; flex-direction:column; gap:18px; }
+    .brand { display:flex; align-items:center; gap:12px; min-height:54px; }
+    .brand-mark { width:44px; height:44px; border-radius:8px; display:grid; place-items:center; color:var(--good); border:1px solid rgba(34,197,94,.36); background:rgba(34,197,94,.12); }
+    .brand h1 { font-size:17px; } .brand p,.muted { color:var(--muted); }
+    .nav { display:grid; gap:6px; }
+    .nav a { min-height:42px; border:1px solid transparent; border-radius:8px; display:flex; align-items:center; gap:10px; padding:0 12px; color:var(--muted); }
+    .nav a.active,.nav a:hover { color:var(--text); border-color:rgba(34,197,94,.55); background:rgba(34,197,94,.12); }
+    .spacer { flex:1; }
+    .side-stats { border:1px solid var(--line); border-radius:8px; background:rgba(15,23,42,.72); padding:12px; display:grid; gap:7px; font-family:"Fira Code", monospace; font-size:12px; }
+    .side-stats div { display:flex; justify-content:space-between; }
+    .main { min-width:0; }
+    .topbar { position:sticky; top:0; z-index:10; min-height:80px; border-bottom:1px solid var(--line); background:rgba(7,17,31,.88); backdrop-filter:blur(14px); display:flex; justify-content:space-between; align-items:center; gap:14px; padding:14px 22px; }
+    .topbar h2 { font-size:21px; } .actions { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+    .content { padding:18px 22px 34px; display:grid; gap:14px; }
+    .panel { border:1px solid var(--line); border-radius:8px; background:linear-gradient(180deg, rgba(15,23,42,.94), rgba(12,21,36,.94)); overflow:hidden; }
+    .panel-head { padding:16px; display:flex; justify-content:space-between; gap:12px; align-items:flex-start; border-bottom:1px solid rgba(38,54,77,.65); }
+    .panel-body { padding:16px; }
+    .btn { min-height:40px; border:1px solid var(--line-strong); border-radius:8px; background:rgba(15,23,42,.74); color:var(--text); padding:0 13px; display:inline-flex; align-items:center; justify-content:center; gap:8px; font-weight:700; }
+    .btn:hover { border-color:var(--info); background:rgba(56,189,248,.10); }
+    .btn.primary { background:var(--good); color:#04130a; border-color:rgba(34,197,94,.72); }
+    .btn.danger { color:#fecdd3; border-color:rgba(244,63,94,.72); background:rgba(244,63,94,.12); }
+    .btn.small { min-height:34px; padding:7px 9px; font-size:12px; }
+    .status-chip,.badge { display:inline-flex; align-items:center; min-height:28px; border:1px solid var(--line); border-radius:999px; padding:4px 10px; color:var(--muted); background:rgba(2,6,23,.28); font-weight:700; font-size:12px; }
+    .good { color:#bbf7d0; border-color:rgba(34,197,94,.44); background:rgba(34,197,94,.10); } .bad { color:#fecdd3; border-color:rgba(244,63,94,.44); background:rgba(244,63,94,.10); } .info { color:#bae6fd; border-color:rgba(56,189,248,.44); background:rgba(56,189,248,.10); }
+    .detail-grid { display:grid; grid-template-columns:minmax(0, 1.3fr) minmax(300px, .7fr); gap:14px; }
+    .live-card { border:1px solid var(--line); border-radius:8px; overflow:hidden; background:#000; min-height:310px; }
+    .live-card header { min-height:46px; padding:0 13px; display:flex; align-items:center; justify-content:space-between; background:rgba(15,23,42,.82); border-bottom:1px solid var(--line); }
+    .live-card iframe,.live-card img { width:100%; height:420px; border:0; display:block; object-fit:contain; background:#000; }
+    .metrics { border:1px solid var(--line); border-radius:8px; padding:14px; display:grid; align-content:start; gap:12px; min-height:310px; }
+    .metric-line { display:grid; grid-template-columns:115px minmax(0,1fr); gap:10px; align-items:start; }
+    .metric-line span { color:var(--muted); } .metric-line b { text-align:right; word-break:break-all; }
+    .toolbar { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:8px; }
+    select,input { min-height:40px; border:1px solid var(--line); border-radius:8px; background:#07111f; color:var(--text); padding:0 12px; }
+    table { width:100%; border-collapse:collapse; }
+    th,td { padding:12px; border-bottom:1px solid var(--line); text-align:left; vertical-align:middle; }
+    th { color:#b7d8ff; font-size:12px; background:rgba(2,6,23,.22); }
+    .event-thumb { width:78px; height:48px; object-fit:cover; border-radius:8px; border:1px solid var(--line); }
+    .empty { min-height:110px; display:grid; place-items:center; border:1px dashed var(--line-strong); border-radius:8px; color:#b7d8ff; }
+    .recordings-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+    .recording-card { border:1px solid var(--line); border-radius:8px; overflow:hidden; background:rgba(2,6,23,.22); }
+    .recording-card video { width:100%; aspect-ratio:16/9; display:block; background:#000; }
+    .recording-card footer { padding:12px; display:flex; justify-content:space-between; gap:10px; align-items:center; }
+    .pager { padding:12px 16px; display:flex; justify-content:space-between; align-items:center; gap:10px; }
+    .toast { position:fixed; right:18px; bottom:18px; z-index:50; min-width:220px; border:1px solid var(--line); border-radius:8px; background:#0f172a; padding:12px 14px; box-shadow:0 16px 60px rgba(0,0,0,.45); }
+    dialog { border:1px solid var(--line-strong); border-radius:8px; background:#0f172a; color:var(--text); padding:0; width:min(440px, calc(100vw - 28px)); }
+    dialog::backdrop { background:rgba(0,0,0,.58); backdrop-filter:blur(3px); }
+    .dialog-body { padding:18px; display:grid; gap:12px; }
+    @media (max-width: 980px) { .app { grid-template-columns:1fr; } .sidebar { position:static; height:auto; } .detail-grid,.recordings-grid { grid-template-columns:1fr; } .topbar { position:static; } }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand"><div class="brand-mark">FD</div><div><h1>Fall Detection</h1><p>Camera operations console</p></div></div>
+      <nav class="nav">
+        <a href="/">Dashboard</a>
+        <a class="active" href="/cameras">Cameras</a>
+        <a href="/prompts">Prompts</a>
+        <a href="/live">Live View</a>
+        <a href="/settings">Settings</a>
+        <a href="/tools">Tools</a>
+      </nav>
+      <div class="spacer"></div>
+      <div class="side-stats">
+        <div><span>CPU</span><b id="cpuStat">-</b></div>
+        <div><span>RAM</span><b id="ramStat">-</b></div>
+        <div><span>Disk</span><b id="diskStat">-</b></div>
+      </div>
+      <a class="btn danger" href="/logout">Logout</a>
+    </aside>
+    <main class="main">
+      <header class="topbar">
+        <div><h2 id="pageTitle">Camera Detail</h2><p class="muted" id="pageMeta">Loading camera timeline.</p></div>
+        <div class="actions">
+          <span id="monitorStatus" class="status-chip">Stopped</span>
+          <button id="startBtn" class="btn primary" type="button">Start</button>
+          <button id="stopBtn" class="btn danger" type="button">Stop</button>
+          <button id="refreshAllBtn" class="btn" type="button">Refresh</button>
+        </div>
+      </header>
+      <section class="content">
+        <section class="panel">
+          <div class="panel-head">
+            <div><h3 id="cameraName">Camera</h3><p class="muted" id="cameraMeta">Loading source.</p></div>
+            <div class="actions">
+              <a class="btn" href="/cameras">Back to cameras</a>
+              <button id="snapshotBtn" class="btn" type="button">Snapshot</button>
+              <button id="testAiBtn" class="btn primary" type="button">Test AI</button>
+            </div>
+          </div>
+          <div class="panel-body detail-grid">
+            <article class="live-card" id="liveCard"><header><strong>Live</strong><span class="badge">loading</span></header><div class="empty">Loading camera.</div></article>
+            <aside class="metrics" id="cameraMetrics"></aside>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div><h3>Camera Events</h3><p class="muted">Timeline filtered to this camera.</p></div>
+            <div class="toolbar">
+              <select id="eventFilterAI"><option value="">All AI results</option><option>SAFE</option><option>EMERGENCY</option></select>
+              <select id="eventPageSize"><option>10</option><option>25</option><option>50</option></select>
+              <button id="refreshEventsBtn" class="btn" type="button">Refresh</button>
+              <button id="clearEventsBtn" class="btn danger" type="button">Clear</button>
+            </div>
+          </div>
+          <div style="overflow:auto;">
+            <table><thead><tr><th>Evidence</th><th>Time</th><th>Camera</th><th>Status</th><th>AI</th><th>Description</th></tr></thead><tbody id="eventsBody"></tbody></table>
+          </div>
+          <div class="pager"><span id="eventsPageInfo" class="muted">Page 1</span><div class="actions"><button id="prevPageBtn" class="btn small">Previous</button><button id="nextPageBtn" class="btn small">Next</button></div></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div><h3>Camera Recordings</h3><p class="muted">Video evidence filtered to this camera.</p></div>
+            <div class="toolbar">
+              <input id="recordingDateFrom" type="date">
+              <input id="recordingDateTo" type="date">
+              <select id="recordingPageSize"><option>6</option><option>12</option><option>24</option></select>
+              <button id="refreshRecordingsBtn" class="btn" type="button">Refresh</button>
+              <button id="clearRecordingsBtn" class="btn danger" type="button">Clear recordings</button>
+            </div>
+          </div>
+          <div class="panel-body"><div id="recordingsGrid" class="recordings-grid"></div></div>
+          <div class="pager"><span id="recordingsPageInfo" class="muted">Page 1</span><div class="actions"><button id="prevRecordingPageBtn" class="btn small">Previous</button><button id="nextRecordingPageBtn" class="btn small">Next</button></div></div>
+        </section>
+      </section>
+    </main>
+  </div>
+  <dialog id="confirmDialog"><div class="dialog-body"><h3 id="confirmTitle">Confirm</h3><p id="confirmMessage" class="muted"></p><b id="confirmScope"></b><div class="actions"><button class="btn" data-cancel type="button">Cancel</button><button id="confirmActionBtn" class="btn danger" type="button">Confirm</button></div></div></dialog>
+  <script>
+    const routeCameraName = {{ camera_name|tojson }};
+    const state = { index:-1, camera:null, prompts:[], go2rtcUrl:"", eventsPage:1, eventsTotal:0, recordingsPage:1, recordingsTotal:0, liveTimer:null };
+    const $ = id => document.getElementById(id);
+    const esc = value => String(value ?? "").replace(/[&<>"']/g, ch => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[ch]));
+    function setText(id, value) { const el = $(id); if (el) el.textContent = value; }
+    function showToast(message, type = "info") {
+      const toast = document.createElement("div");
+      toast.className = `toast ${type === "err" ? "bad" : type === "ok" ? "good" : "info"}`;
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 4200);
+    }
+    async function api(url, options = {}) {
+      const timeout = options.timeout || 30000;
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeout);
+      try {
+        const res = await fetch(url, { ...options, signal: controller.signal });
+        const text = await res.text();
+        let data = {};
+        try { data = text ? JSON.parse(text) : {}; } catch { data = { raw:text }; }
+        if (!res.ok) throw new Error(data.detail || data.message || `HTTP ${res.status}`);
+        return data;
+      } finally { clearTimeout(timer); }
+    }
+    function formatTimeUtc7(value) {
+      if (!value) return "-";
+      const raw = String(value).trim();
+      const date = new Date(/^\d{4}-\d{2}-\d{2}T/.test(raw) && !(/[zZ]|[+-]\d{2}:?\d{2}$/.test(raw)) ? `${raw}Z` : raw);
+      if (Number.isNaN(date.getTime())) return raw;
+      const parts = new Intl.DateTimeFormat("en-GB", { timeZone:"Asia/Ho_Chi_Minh", day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit", second:"2-digit", hour12:false }).formatToParts(date).reduce((a,p) => (a[p.type]=p.value,a), {});
+      return `${parts.day}/${parts.month}/${parts.year} - ${parts.hour}:${parts.minute}:${parts.second}`;
+    }
+    function eventDescription(event) { return event.message || event.ai_raw || event.description || event.error || "-"; }
+    function badgeClass(value) {
+      const v = String(value || "").toUpperCase();
+      if (v === "EMERGENCY" || v === "ERROR" || v === "STOPPED") return "bad";
+      if (v === "SAFE" || v === "RUNNING" || v === "ENABLED") return "good";
+      return "info";
+    }
+    function promptTitle(id) {
+      const prompt = state.prompts.find(item => item.id === id);
+      return prompt ? prompt.title || "Untitled prompt" : "Default prompt";
+    }
+    function go2rtcSourceFromInput(value) {
+      const text = String(value || "").trim();
+      if (!text) return "";
+      try { const url = new URL(text); return url.searchParams.get("src") || url.pathname.replace(/\/+$/, "").split("/").pop() || ""; } catch { return text; }
+    }
+    function cameraSnapshotUrl(refresh = false) { return `/api/camera/snapshot?index=${state.index}${refresh ? "&refresh=1" : ""}&v=${Date.now()}`; }
+    function go2rtcStreamUrl(src) { return `${String(state.go2rtcUrl || "").replace(/\/$/, "")}/stream.html?src=${encodeURIComponent(src)}&mode=mse`; }
+    function liveSource() {
+      const camera = state.camera || {};
+      const liveMode = camera.live_mode || "auto";
+      if (camera.live_url && liveMode !== "snapshot") return { mode:"iframe", url:camera.live_url };
+      const go2rtcSrc = go2rtcSourceFromInput(camera.go2rtc_src) || camera.name || "";
+      if (liveMode === "snapshot" && (go2rtcSrc || camera.rtsp_url)) return { mode:"snapshot", url:cameraSnapshotUrl(true) };
+      if (state.go2rtcUrl && go2rtcSrc) return { mode:"iframe", url:go2rtcStreamUrl(go2rtcSrc) };
+      if (camera.rtsp_url) return { mode:"img", url:`/api/camera/video?index=${state.index}` };
+      return { mode:"empty", url:"" };
+    }
+    function renderLive() {
+      if (state.liveTimer) clearInterval(state.liveTimer);
+      const camera = state.camera || {};
+      const name = camera.name || routeCameraName;
+      const source = liveSource();
+      const card = $("liveCard");
+      card.innerHTML = `<header><strong>${esc(name)}</strong><span class="badge">${esc(source.mode)}</span></header>`;
+      if (source.mode === "iframe") {
+        card.insertAdjacentHTML("beforeend", `<iframe title="${esc(name)}" src="${esc(source.url)}" allow="autoplay; fullscreen; picture-in-picture"></iframe>`);
+      } else if (source.mode === "snapshot") {
+        const img = document.createElement("img");
+        img.alt = name;
+        img.src = cameraSnapshotUrl(true);
+        state.liveTimer = setInterval(() => { img.src = cameraSnapshotUrl(true); }, 2500);
+        card.appendChild(img);
+      } else if (source.mode === "img") {
+        card.insertAdjacentHTML("beforeend", `<img alt="${esc(name)}" src="${esc(source.url)}&ts=${Date.now()}">`);
+      } else {
+        card.insertAdjacentHTML("beforeend", `<div class="empty">No live source configured.</div>`);
+      }
+      $("cameraMetrics").innerHTML = `
+        <div class="metric-line"><span>Status</span><b>${camera.enabled ? "Enabled" : "Disabled"}</b></div>
+        <div class="metric-line"><span>Prompt</span><b>${esc(promptTitle(camera.prompt_id))}</b></div>
+        <div class="metric-line"><span>Record</span><b>${camera.teldrive_record_enabled ? "On" : "Off"}</b></div>
+        <div class="metric-line"><span>go2rtc</span><b>${esc(camera.go2rtc_src || "-")}</b></div>
+        <div class="metric-line"><span>Live mode</span><b>${esc(source.mode)}</b></div>`;
+    }
+    async function loadCamera() {
+      const data = await api(`/api/camera/detail/${encodeURIComponent(routeCameraName)}`);
+      state.index = data.index;
+      state.camera = data.camera || {};
+      state.prompts = data.prompts || [];
+      state.go2rtcUrl = data.go2rtc_url || "";
+      const status = data.status || {};
+      setText("pageTitle", state.camera.name || routeCameraName);
+      setText("cameraName", state.camera.name || routeCameraName);
+      setText("pageMeta", "Review one camera timeline and recordings.");
+      setText("cameraMeta", `${state.camera.enabled ? "Enabled" : "Disabled"} - ${state.camera.go2rtc_src || state.camera.rtsp_url || state.camera.live_url || "No source"}`);
+      $("monitorStatus").textContent = status.running ? "Running" : "Stopped";
+      $("monitorStatus").className = `status-chip ${status.running ? "good" : ""}`;
+      renderLive();
+    }
+    async function loadStatus() {
+      const data = await api("/api/status");
+      const system = data.system || {};
+      setText("cpuStat", `${system.cpu_percent ?? "-"}%`);
+      setText("ramStat", `${system.ram_percent ?? "-"}%`);
+      setText("diskStat", `${system.disk_percent ?? "-"}%`);
+      $("monitorStatus").textContent = data.status?.running ? "Running" : "Stopped";
+      $("monitorStatus").className = `status-chip ${data.status?.running ? "good" : ""}`;
+    }
+    async function loadEvents() {
+      const limit = Number($("eventPageSize").value || 10);
+      const params = new URLSearchParams({ page:String(state.eventsPage), limit:String(limit), ai_result:$("eventFilterAI").value, camera:state.camera.name || routeCameraName });
+      const data = await api(`/api/events?${params}`);
+      state.eventsTotal = data.total || 0;
+      const events = data.events || [];
+      $("eventsBody").innerHTML = events.length ? events.map(event => `
+        <tr>
+          <td>${event.image_url ? `<a href="${esc(event.image_url)}" target="_blank"><img class="event-thumb" src="${esc(event.image_url)}" loading="lazy" alt="Event image"></a>` : '<span class="badge">No image</span>'}</td>
+          <td class="mono">${esc(formatTimeUtc7(event.time || event.time_local))}</td>
+          <td>${esc(event.camera || "-")}</td>
+          <td><span class="badge ${badgeClass(event.status)}">${esc(event.status || "-")}</span></td>
+          <td><span class="badge ${badgeClass(event.ai_result)}">${esc(event.ai_result || "-")}</span></td>
+          <td>${esc(eventDescription(event))}</td>
+        </tr>`).join("") : '<tr><td colspan="6"><div class="empty">No events found.</div></td></tr>';
+      const totalPages = Math.max(1, Math.ceil(state.eventsTotal / limit));
+      setText("eventsPageInfo", `Page ${state.eventsPage} of ${totalPages} - ${state.eventsTotal} events`);
+      $("prevPageBtn").disabled = state.eventsPage <= 1;
+      $("nextPageBtn").disabled = state.eventsPage >= totalPages;
+    }
+    async function loadRecordings() {
+      const limit = Number($("recordingPageSize").value || 6);
+      const params = new URLSearchParams({ page:String(state.recordingsPage), limit:String(limit), camera:state.camera.name || routeCameraName, date_from:$("recordingDateFrom").value, date_to:$("recordingDateTo").value });
+      const data = await api(`/api/recordings?${params}`);
+      state.recordingsTotal = data.total || 0;
+      const items = data.recordings || [];
+      $("recordingsGrid").innerHTML = items.length ? items.map(item => `
+        <article class="recording-card">
+          <video controls preload="metadata" src="${esc(item.video_url || "")}"></video>
+          <footer><div><b>${esc(item.camera || "Camera")}</b><p class="muted">${esc(formatTimeUtc7(item.time || item.time_local))}</p></div><a class="btn small" href="${esc(item.video_url || "#")}" target="_blank" rel="noopener">Open</a></footer>
+        </article>`).join("") : '<div class="empty">No recordings found for this filter.</div>';
+      const totalPages = Math.max(1, Math.ceil(state.recordingsTotal / limit));
+      setText("recordingsPageInfo", `Page ${state.recordingsPage} of ${totalPages} - ${state.recordingsTotal} recordings`);
+      $("prevRecordingPageBtn").disabled = state.recordingsPage <= 1;
+      $("nextRecordingPageBtn").disabled = state.recordingsPage >= totalPages;
+    }
+    function askConfirm(title, message, scope) {
+      return new Promise(resolve => {
+        const dialog = $("confirmDialog");
+        setText("confirmTitle", title); setText("confirmMessage", message); setText("confirmScope", scope);
+        const action = $("confirmActionBtn");
+        const cleanup = value => { action.onclick = null; dialog.querySelector("[data-cancel]").onclick = null; if (dialog.open) dialog.close(); resolve(value); };
+        action.onclick = () => cleanup(true);
+        dialog.querySelector("[data-cancel]").onclick = () => cleanup(false);
+        dialog.showModal();
+      });
+    }
+    async function monitorAction(url) { const data = await api(url, { method:"POST", timeout:20000 }); showToast(data.message || "Done", "ok"); await loadStatus(); }
+    async function refreshAll() { await Promise.all([loadStatus(), loadEvents(), loadRecordings()]); }
+    $("startBtn").onclick = () => monitorAction("/api/start").catch(err => showToast(err.message, "err"));
+    $("stopBtn").onclick = () => monitorAction("/api/stop").catch(err => showToast(err.message, "err"));
+    $("refreshAllBtn").onclick = () => refreshAll().catch(err => showToast(err.message, "err"));
+    $("snapshotBtn").onclick = () => window.open(cameraSnapshotUrl(true), "_blank");
+    $("testAiBtn").onclick = async () => {
+      try { const data = await api(`/api/test-ai-camera?index=${state.index}`, { method:"POST", timeout:150000 }); showToast(`AI: ${data.result || "done"}`, "ok"); await loadEvents(); }
+      catch (err) { showToast(err.message, "err"); }
+    };
+    $("refreshEventsBtn").onclick = () => { state.eventsPage = 1; loadEvents().catch(err => showToast(err.message, "err")); };
+    $("eventFilterAI").onchange = $("eventPageSize").onchange = () => { state.eventsPage = 1; loadEvents(); };
+    $("prevPageBtn").onclick = () => { if (state.eventsPage > 1) { state.eventsPage--; loadEvents(); } };
+    $("nextPageBtn").onclick = () => { state.eventsPage++; loadEvents(); };
+    $("clearEventsBtn").onclick = async () => {
+      const camera = state.camera.name || routeCameraName;
+      if (!(await askConfirm("Clear camera events", "Delete event timeline records for this camera.", camera))) return;
+      const data = await api(`/api/events?camera=${encodeURIComponent(camera)}`, { method:"DELETE" });
+      showToast(data.message || "Events cleared", "ok"); state.eventsPage = 1; await loadEvents();
+    };
+    $("refreshRecordingsBtn").onclick = () => { state.recordingsPage = 1; loadRecordings().catch(err => showToast(err.message, "err")); };
+    $("recordingDateFrom").onchange = $("recordingDateTo").onchange = $("recordingPageSize").onchange = () => { state.recordingsPage = 1; loadRecordings(); };
+    $("prevRecordingPageBtn").onclick = () => { if (state.recordingsPage > 1) { state.recordingsPage--; loadRecordings(); } };
+    $("nextRecordingPageBtn").onclick = () => { state.recordingsPage++; loadRecordings(); };
+    $("clearRecordingsBtn").onclick = async () => {
+      const camera = state.camera.name || routeCameraName;
+      if (!(await askConfirm("Clear camera recordings", "Delete recording records for this camera.", camera))) return;
+      const data = await api(`/api/recordings?camera=${encodeURIComponent(camera)}`, { method:"DELETE" });
+      showToast(data.message || "Recordings cleared", "ok"); state.recordingsPage = 1; await loadRecordings();
+    };
+    loadCamera().then(() => Promise.all([loadStatus(), loadEvents(), loadRecordings()])).catch(err => showToast(err.message, "err"));
+    setInterval(() => loadStatus().catch(() => {}), 10000);
+  </script>
+</body>
+</html>

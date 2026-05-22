@@ -142,7 +142,7 @@ async def cameras_page(request: Request, _: str = Depends(auth.require_auth)):
 async def camera_page(request: Request, camera_name: str, _: str = Depends(auth.require_auth)):
     if not camera_name.strip():
         return RedirectResponse(url="/cameras", status_code=status.HTTP_302_FOUND)
-    return templates.TemplateResponse(request=request, name="index.html", context={})
+    return templates.TemplateResponse(request=request, name="camera_detail.html", context={"camera_name": camera_name})
 
 
 @app.get("/{page_name}", response_class=HTMLResponse)
@@ -286,6 +286,35 @@ async def get_cameras(_: str = Depends(auth.require_auth)):
         "cameras": c.get("cameras", []),
         "prompts": c.get("prompts", []),
         "go2rtc_url": c.get("go2rtc_url", ""),
+    }
+
+
+def find_camera_by_name(c: dict[str, Any], camera_name: str) -> tuple[int, dict[str, Any]]:
+    needle = str(camera_name or "").strip()
+    cameras = c.get("cameras", [])
+    for index, camera in enumerate(cameras):
+        aliases = [
+            camera.get("name"),
+            camera.get("go2rtc_src"),
+            camera.get("rtsp_url"),
+            camera.get("live_url"),
+        ]
+        if any(str(alias or "").strip() == needle for alias in aliases):
+            return index, camera
+    raise HTTPException(status_code=404, detail="Camera not found")
+
+
+@app.get("/api/camera/detail/{camera_name:path}")
+async def get_camera_detail(camera_name: str, _: str = Depends(auth.require_auth)):
+    c = config.read_config()
+    index, camera = find_camera_by_name(c, camera_name)
+    return {
+        "success": True,
+        "index": index,
+        "camera": camera,
+        "prompts": c.get("prompts", []),
+        "go2rtc_url": c.get("go2rtc_url", ""),
+        "status": monitor.read_state(),
     }
 
 
