@@ -138,8 +138,63 @@
       border-radius: var(--radius);
       background: #000;
     }
-    .thumb img { width: 100%; height: 100%; display: block; object-fit: cover; }
+    .thumb.loading { border-color: rgba(34, 197, 94, .38); box-shadow: inset 0 0 22px rgba(34, 197, 94, .08); }
+    .thumb img { width: 100%; height: 100%; display: block; object-fit: cover; opacity: 1; transition: opacity .22s ease; }
+    .thumb.loading img { opacity: 0; }
     .thumb .empty { width: 100%; height: 100%; display: grid; place-items: center; color: var(--muted); }
+    .thumb-loader {
+      position: absolute;
+      inset: 0;
+      display: none;
+      overflow: hidden;
+      background:
+        linear-gradient(rgba(34, 197, 94, .07) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(56, 189, 248, .06) 1px, transparent 1px),
+        radial-gradient(circle at 50% 45%, rgba(34, 197, 94, .12), transparent 46%),
+        #020617;
+      background-size: 100% 18px, 18px 100%, 100% 100%, 100% 100%;
+      z-index: 1;
+    }
+    .thumb.loading .thumb-loader { display: block; }
+    .thumb-loader::before {
+      content: "";
+      position: absolute;
+      inset: -40% 0 auto;
+      height: 42%;
+      background: linear-gradient(180deg, transparent, rgba(34, 197, 94, .28), transparent);
+      animation: thumb-scan 1.25s linear infinite;
+    }
+    .thumb-loader::after {
+      content: "SYNCING FEED";
+      position: absolute;
+      left: 10px;
+      bottom: 9px;
+      font-size: 10px;
+      font-weight: 800;
+      color: #86efac;
+      letter-spacing: 0;
+      text-shadow: 0 0 10px rgba(34, 197, 94, .55);
+    }
+    .thumb-loader .terminal-lines {
+      position: absolute;
+      inset: 10px;
+      border: 1px solid rgba(34, 197, 94, .20);
+      border-radius: 6px;
+    }
+    .thumb-loader .terminal-lines::before {
+      content: "> handshaking\A> pulling jpeg\A> decoding frame";
+      white-space: pre;
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      color: rgba(187, 247, 208, .84);
+      font-size: 10px;
+      line-height: 1.55;
+    }
+    @keyframes thumb-scan {
+      from { transform: translateY(-30%); }
+      to { transform: translateY(320%); }
+    }
     .thumb-refresh {
       position: absolute;
       top: 8px; right: 8px;
@@ -154,6 +209,10 @@
     }
     .thumb-refresh:hover { border-color: rgba(56, 189, 248, .76); background: rgba(15, 23, 42, .92); }
     .thumb-refresh svg, .btn svg, .mark svg { width: 17px; height: 17px; stroke: currentColor; stroke-width: 1.9; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    @media (prefers-reduced-motion: reduce) {
+      .thumb-loader::before { animation: none; }
+      .thumb img { transition: none; }
+    }
     .camera-main { min-height: 124px; display: flex; flex-direction: column; justify-content: space-between; gap: 10px; min-width: 0; }
     .camera-main h3 { font-size: 14px; }
     .source { color: var(--muted); margin-top: 4px; word-break: break-all; }
@@ -465,11 +524,12 @@
       grid.innerHTML = state.cameras.map((camera, index) => {
         const name = cameraName(camera, index);
         const hasSnapshot = camera.rtsp_url || camera.go2rtc_src || camera.name;
+        const thumbClass = hasSnapshot ? "thumb loading" : "thumb";
         return `
           <article class="camera-card">
-            <div class="thumb">
+            <div class="${thumbClass}">
               ${hasSnapshot
-                ? `<img src="${esc(snapshotUrl(index))}" loading="lazy" alt="${esc(name)} snapshot" onerror="this.replaceWith(Object.assign(document.createElement('div'), {className: 'empty', textContent: 'Snapshot unavailable'}))"><button class="thumb-refresh" data-refresh-thumb="${index}" type="button" title="Refresh thumbnail" aria-label="Refresh ${esc(name)} thumbnail">${icons.refresh}</button>`
+                ? `<div class="thumb-loader" aria-hidden="true"><span class="terminal-lines"></span></div><img src="${esc(snapshotUrl(index))}" loading="lazy" alt="${esc(name)} snapshot" onload="this.closest('.thumb')?.classList.remove('loading')" onerror="this.closest('.thumb')?.classList.remove('loading'); this.replaceWith(Object.assign(document.createElement('div'), {className: 'empty', textContent: 'Snapshot unavailable'}))"><button class="thumb-refresh" data-refresh-thumb="${index}" type="button" title="Refresh thumbnail" aria-label="Refresh ${esc(name)} thumbnail">${icons.refresh}</button>`
                 : '<div class="empty">No snapshot source</div>'}
             </div>
             <div class="camera-main">
@@ -560,9 +620,14 @@
         const img = thumb ? thumb.querySelector("img") : null;
         if (!img) return;
         setBusy(refresh, true);
+        thumb.classList.add("loading");
         img.src = snapshotUrl(index, true);
-        img.onload = () => setBusy(refresh, false);
+        img.onload = () => {
+          thumb.classList.remove("loading");
+          setBusy(refresh, false);
+        };
         img.onerror = () => {
+          thumb.classList.remove("loading");
           setBusy(refresh, false);
           showToast("Snapshot refresh failed.", "err");
         };
