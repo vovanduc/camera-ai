@@ -138,34 +138,38 @@
       border-radius: var(--radius);
       background: #000;
     }
-    .thumb.loading { border-color: rgba(34, 197, 94, .38); box-shadow: inset 0 0 22px rgba(34, 197, 94, .08); }
-    .thumb img { width: 100%; height: 100%; display: block; object-fit: cover; opacity: 1; transition: opacity .22s ease; }
-    .thumb.loading img { opacity: 0; }
+    .thumb.loading { border-color: rgba(34, 197, 94, .52); box-shadow: inset 0 0 26px rgba(34, 197, 94, .12), 0 0 0 1px rgba(34, 197, 94, .08); }
+    .thumb img { width: 100%; height: 100%; display: block; object-fit: cover; opacity: 1; transition: opacity .22s ease, filter .22s ease; }
+    .thumb.loading img { opacity: .48; filter: saturate(.72) contrast(1.08) brightness(.76); }
     .thumb .empty { width: 100%; height: 100%; display: grid; place-items: center; color: var(--muted); }
     .thumb-loader {
       position: absolute;
       inset: 0;
       display: none;
       overflow: hidden;
+      pointer-events: none;
       background:
-        linear-gradient(rgba(34, 197, 94, .07) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(56, 189, 248, .06) 1px, transparent 1px),
-        radial-gradient(circle at 50% 45%, rgba(34, 197, 94, .12), transparent 46%),
-        #020617;
-      background-size: 100% 18px, 18px 100%, 100% 100%, 100% 100%;
+        linear-gradient(rgba(34, 197, 94, .10) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(56, 189, 248, .08) 1px, transparent 1px),
+        radial-gradient(circle at 50% 50%, rgba(34, 197, 94, .10), transparent 52%),
+        rgba(2, 6, 23, .38);
+      background-size: 100% 16px, 16px 100%, 100% 100%, 100% 100%;
+      backdrop-filter: blur(1.2px);
       z-index: 1;
+      animation: thumb-grid 1.4s steps(2, end) infinite;
     }
     .thumb.loading .thumb-loader { display: block; }
     .thumb-loader::before {
       content: "";
       position: absolute;
-      inset: -40% 0 auto;
-      height: 42%;
-      background: linear-gradient(180deg, transparent, rgba(34, 197, 94, .28), transparent);
-      animation: thumb-scan 1.25s linear infinite;
+      inset: auto 0 0;
+      height: 3px;
+      background: linear-gradient(90deg, transparent, rgba(34, 197, 94, .95), rgba(56, 189, 248, .85), transparent);
+      box-shadow: 0 0 18px rgba(34, 197, 94, .85), 0 -28px 42px rgba(34, 197, 94, .24);
+      animation: thumb-scan 1.05s cubic-bezier(.45, 0, .2, 1) infinite;
     }
     .thumb-loader::after {
-      content: "SYNCING FEED";
+      content: "SYNCING FEED...";
       position: absolute;
       left: 10px;
       bottom: 9px;
@@ -174,15 +178,17 @@
       color: #86efac;
       letter-spacing: 0;
       text-shadow: 0 0 10px rgba(34, 197, 94, .55);
+      animation: thumb-blink .78s steps(2, end) infinite;
     }
     .thumb-loader .terminal-lines {
       position: absolute;
       inset: 10px;
       border: 1px solid rgba(34, 197, 94, .20);
       border-radius: 6px;
+      box-shadow: inset 0 0 22px rgba(34, 197, 94, .08);
     }
     .thumb-loader .terminal-lines::before {
-      content: "> handshaking\A> pulling jpeg\A> decoding frame";
+      content: "> pulling jpeg\A> decrypting light\A> painting frame";
       white-space: pre;
       position: absolute;
       top: 10px;
@@ -190,10 +196,20 @@
       color: rgba(187, 247, 208, .84);
       font-size: 10px;
       line-height: 1.55;
+      animation: thumb-terminal .9s steps(2, end) infinite;
     }
     @keyframes thumb-scan {
-      from { transform: translateY(-30%); }
-      to { transform: translateY(320%); }
+      from { transform: translateY(-124px); }
+      to { transform: translateY(0); }
+    }
+    @keyframes thumb-grid {
+      50% { background-position: 0 8px, 8px 0, 0 0, 0 0; }
+    }
+    @keyframes thumb-blink {
+      50% { opacity: .42; }
+    }
+    @keyframes thumb-terminal {
+      50% { opacity: .62; text-shadow: 0 0 12px rgba(34, 197, 94, .75); }
     }
     .thumb-refresh {
       position: absolute;
@@ -210,7 +226,7 @@
     .thumb-refresh:hover { border-color: rgba(56, 189, 248, .76); background: rgba(15, 23, 42, .92); }
     .thumb-refresh svg, .btn svg, .mark svg { width: 17px; height: 17px; stroke: currentColor; stroke-width: 1.9; fill: none; stroke-linecap: round; stroke-linejoin: round; }
     @media (prefers-reduced-motion: reduce) {
-      .thumb-loader::before { animation: none; }
+      .thumb-loader, .thumb-loader::before, .thumb-loader::after, .thumb-loader .terminal-lines::before { animation: none; }
       .thumb img { transition: none; }
     }
     .camera-main { min-height: 124px; display: flex; flex-direction: column; justify-content: space-between; gap: 10px; min-width: 0; }
