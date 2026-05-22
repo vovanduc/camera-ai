@@ -248,6 +248,7 @@ def normalize_cameras(config: dict[str, Any]) -> list[dict[str, Any]]:
             "rtsp_url": str(cam.get("rtsp_url", "")).strip(),
             "go2rtc_src": str(cam.get("go2rtc_src", "")).strip(),
             "live_url": str(cam.get("live_url", "")).strip(),
+            "live_mode": str(cam.get("live_mode", "auto")).strip() if str(cam.get("live_mode", "auto")).strip() in {"auto", "iframe", "snapshot"} else "auto",
             "prompt_id": str(cam.get("prompt_id", "")).strip(),
             "local_save_images": cam.get("local_save_images") is not False,
             "local_save_videos": cam.get("local_save_videos") is not False,
@@ -259,7 +260,7 @@ def normalize_cameras(config: dict[str, Any]) -> list[dict[str, Any]]:
     # Fallback: top-level rtsp_url → single default camera
     fallback = str(config.get("rtsp_url", "")).strip()
     if not cameras and fallback:
-        cameras.append({"enabled": True, "name": "Default", "rtsp_url": fallback, "go2rtc_src": "", "live_url": "", "prompt_id": "", "local_save_images": True, "local_save_videos": True, "teldrive_upload_images": True, "teldrive_record_enabled": False, "record_seconds": int(config.get("teldrive_record_seconds", 10)), "record_cooldown": int(config.get("teldrive_record_cooldown", 300))})
+        cameras.append({"enabled": True, "name": "Default", "rtsp_url": fallback, "go2rtc_src": "", "live_url": "", "live_mode": "auto", "prompt_id": "", "local_save_images": True, "local_save_videos": True, "teldrive_upload_images": True, "teldrive_record_enabled": False, "record_seconds": int(config.get("teldrive_record_seconds", 10)), "record_cooldown": int(config.get("teldrive_record_cooldown", 300))})
     return cameras
 
 

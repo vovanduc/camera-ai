@@ -964,6 +964,15 @@
         <div class="field full"><label for="camRtsp">RTSP URL</label><input id="camRtsp" autocomplete="off"></div>
         <div class="field"><label for="camGo2rtc">go2rtc src</label><input id="camGo2rtc" autocomplete="off"></div>
         <div class="field"><label for="camLive">Live URL</label><input id="camLive" autocomplete="off"></div>
+        <div class="field full">
+          <label for="camLiveMode">Chế độ live</label>
+          <select id="camLiveMode">
+            <option value="auto">Tự động: go2rtc iframe</option>
+            <option value="iframe">go2rtc iframe / MSE</option>
+            <option value="snapshot">Snapshot refresh cho HEVC</option>
+          </select>
+          <span class="help-text">HEVC/H.265 thường không hiển thị trong MSE trên browser. Chọn Snapshot refresh nếu màn hình live bị đen.</span>
+        </div>
         <div class="field">
           <label>Lưu trữ local</label>
           <div class="stack">
@@ -1083,7 +1092,8 @@
       editingPrompt: -1,
       viewerUrl: "",
       viewerMode: "image",
-      snapshotUrls: {}
+      snapshotUrls: {},
+      liveRefreshTimers: []
     };
 
     const pages = {
@@ -1270,6 +1280,7 @@
       const nextUrl = viewUrl(name, cameraRoute);
       const method = options.push ? "pushState" : "replaceState";
       if (location.pathname !== nextUrl) history[method](null, "", nextUrl);
+      if (name !== "live" && name !== "camera-detail") clearLiveRefreshTimers();
       if (name === "live") renderLive();
       if (name === "camera-detail") {
         renderCameraDetail();
@@ -1318,7 +1329,7 @@
       return prompt ? prompt.title || "Untitled prompt" : "Default prompt";
     }
     function cameraSnapshotSignature(camera, index) {
-      return [index, cameraName(camera, index), camera.rtsp_url || "", camera.go2rtc_src || "", camera.live_url || ""].join("|");
+      return [index, cameraName(camera, index), camera.rtsp_url || "", camera.go2rtc_src || "", camera.live_url || "", camera.live_mode || "auto"].join("|");
     }
     function cameraSnapshotUrl(index, refresh = false) {
       const camera = state.cameras[index] || {};
@@ -1337,11 +1348,49 @@
       return `${base}/stream.html?src=${encodeURIComponent(src)}&mode=mse`;
     }
     function liveSource(camera, index) {
-      if (camera.live_url) return { mode: "iframe", url: camera.live_url };
+      const liveMode = camera.live_mode || "auto";
+      if (camera.live_url && liveMode !== "snapshot") return { mode: "iframe", url: camera.live_url };
       const go2rtcSrc = camera.go2rtc_src || camera.name || "";
+      if (liveMode === "snapshot" && (go2rtcSrc || camera.rtsp_url)) return { mode: "snapshot", url: cameraSnapshotUrl(index, true) };
       if (state.config.go2rtc_url && go2rtcSrc) return { mode: "iframe", url: go2rtcStreamUrl(go2rtcSrc) };
       if (camera.rtsp_url) return { mode: "img", url: `/api/camera/video?index=${index}` };
       return { mode: "empty", url: "" };
+    }
+    function clearLiveRefreshTimers() {
+      state.liveRefreshTimers.forEach(timer => clearInterval(timer));
+      state.liveRefreshTimers = [];
+    }
+    function appendLiveMedia(container, source, name, index) {
+      if (source.mode === "iframe") {
+        const frame = document.createElement("iframe");
+        frame.title = name;
+        frame.src = source.url;
+        frame.allow = "autoplay; fullscreen; picture-in-picture";
+        container.appendChild(frame);
+      } else if (source.mode === "snapshot") {
+        const img = document.createElement("img");
+        img.alt = name;
+        img.src = cameraSnapshotUrl(index, true);
+        const timer = setInterval(() => {
+          if (!document.body.contains(img)) {
+            clearInterval(timer);
+            return;
+          }
+          img.src = cameraSnapshotUrl(index, true);
+        }, 2500);
+        state.liveRefreshTimers.push(timer);
+        container.appendChild(img);
+      } else if (source.mode === "img") {
+        const img = document.createElement("img");
+        img.alt = name;
+        img.src = `${source.url}&ts=${Date.now()}`;
+        container.appendChild(img);
+      } else {
+        const empty = document.createElement("div");
+        empty.className = "empty";
+        empty.textContent = "No live source configured.";
+        container.appendChild(empty);
+      }
     }
 
     async function loadConfig() {
@@ -1358,7 +1407,8 @@
       renderPrompts();
       renderCameraFilters();
       renderDashboard();
-      renderLive();
+      if (route.view === "live") renderLive();
+      else clearLiveRefreshTimers();
       if (route.view === "camera-detail") renderCameraDetail();
     }
 
@@ -1531,27 +1581,12 @@
 
       const source = liveSource(camera, index);
       const container = $("cameraDetailLive");
+      clearLiveRefreshTimers();
       container.innerHTML = "";
       const card = document.createElement("article");
       card.className = "live-card";
       card.innerHTML = `<header><strong>${esc(name)}</strong><span class="badge">${esc(source.mode)}</span></header>`;
-      if (source.mode === "iframe") {
-        const frame = document.createElement("iframe");
-        frame.title = name;
-        frame.src = source.url;
-        frame.allow = "autoplay; fullscreen; picture-in-picture";
-        card.appendChild(frame);
-      } else if (source.mode === "img") {
-        const img = document.createElement("img");
-        img.alt = name;
-        img.src = `${source.url}&ts=${Date.now()}`;
-        card.appendChild(img);
-      } else {
-        const empty = document.createElement("div");
-        empty.className = "empty";
-        empty.textContent = "No live source configured.";
-        card.appendChild(empty);
-      }
+      appendLiveMedia(card, source, name, index);
       container.appendChild(card);
       const side = document.createElement("aside");
       side.className = "detail-side";
@@ -1635,6 +1670,7 @@
     }
 
     function renderLive() {
+      clearLiveRefreshTimers();
       const grid = $("liveGrid");
       grid.className = `live-grid cols-${state.liveLayout}`;
       const visible = state.cameras.map((camera, index) => ({ camera, index })).filter(item => item.camera.enabled);
@@ -1649,23 +1685,7 @@
         card.className = "live-card";
         const name = cameraName(camera, index);
         card.innerHTML = `<header><strong>${esc(name)}</strong><span class="badge">${esc(source.mode)}</span></header>`;
-        if (source.mode === "iframe") {
-          const frame = document.createElement("iframe");
-          frame.title = name;
-          frame.src = source.url;
-          frame.allow = "autoplay; fullscreen; picture-in-picture";
-          card.appendChild(frame);
-        } else if (source.mode === "img") {
-          const img = document.createElement("img");
-          img.alt = name;
-          img.src = `${source.url}&ts=${Date.now()}`;
-          card.appendChild(img);
-        } else {
-          const empty = document.createElement("div");
-          empty.className = "empty";
-          empty.textContent = "No live source configured.";
-          card.appendChild(empty);
-        }
+        appendLiveMedia(card, source, name, index);
         grid.appendChild(card);
       }
     }
@@ -1682,7 +1702,7 @@
       fillSettings(state.config);
       renderCameras();
       renderPrompts();
-      renderLive();
+      if (parseViewRoute().view === "live") renderLive();
       setText(statusId, data.message || "Saved");
       showToast(data.message || "Settings saved", "ok");
       await loadStatus();
@@ -1691,7 +1711,7 @@
     function openCameraDialog(index = -1) {
       state.editingCamera = index;
       const camera = index >= 0 ? state.cameras[index] : {
-        enabled: true, name: "", rtsp_url: "", go2rtc_src: "", live_url: "", prompt_id: "",
+        enabled: true, name: "", rtsp_url: "", go2rtc_src: "", live_url: "", live_mode: "auto", prompt_id: "",
         local_save_images: true, local_save_videos: true, teldrive_upload_images: true, teldrive_record_enabled: false,
         record_seconds: 10, record_cooldown: 300
       };
@@ -1701,6 +1721,7 @@
       $("camRtsp").value = camera.rtsp_url || "";
       $("camGo2rtc").value = camera.go2rtc_src || "";
       $("camLive").value = camera.live_url || "";
+      $("camLiveMode").value = camera.live_mode || "auto";
       $("camPrompt").value = camera.prompt_id || "";
       $("camSaveImages").checked = camera.local_save_images !== false;
       $("camSaveVideos").checked = camera.local_save_videos !== false;
@@ -1836,6 +1857,7 @@
         rtsp_url: $("camRtsp").value.trim(),
         go2rtc_src: $("camGo2rtc").value.trim(),
         live_url: $("camLive").value.trim(),
+        live_mode: $("camLiveMode").value,
         prompt_id: $("camPrompt").value,
         local_save_images: $("camSaveImages").checked,
         local_save_videos: $("camSaveVideos").checked,
