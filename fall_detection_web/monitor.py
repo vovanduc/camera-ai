@@ -4,13 +4,11 @@ from __future__ import annotations
 
 import logging
 import os
-import shutil
-import subprocess
 import threading
 import time
 from pathlib import Path
 from typing import Any
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, urlparse, urlunparse
 
 import requests
 
@@ -168,6 +166,19 @@ def is_http_url(value: str) -> bool:
     return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
 
 
+def video_only_source(src: str) -> str:
+    parsed = urlparse(str(src or "").strip())
+    if parsed.scheme not in {"rtsp", "rtsps", "rtspx"}:
+        return src
+    flags = [item for item in parsed.fragment.split("#") if item]
+    keys = {item.split("=", 1)[0] for item in flags}
+    if "media" not in keys:
+        flags.append("media=video")
+    if "backchannel" not in keys:
+        flags.append("backchannel=0")
+    return urlunparse(parsed._replace(fragment="#".join(flags)))
+
+
 def go2rtc_frame_request(config: dict[str, Any], camera: dict[str, Any]) -> tuple[str, dict[str, str], str]:
     raw_source = str(camera.get("go2rtc_src") or "").strip()
     if is_http_url(raw_source):
@@ -177,7 +188,8 @@ def go2rtc_frame_request(config: dict[str, Any], camera: dict[str, Any]) -> tupl
     src = go2rtc_source(camera)
     if not base_url or not src:
         raise ValueError("go2rtc URL or camera source is empty")
-    return f"{base_url}/api/frame.jpeg", {"src": src}, src
+    request_src = video_only_source(src)
+    return f"{base_url}/api/frame.jpeg", {"src": request_src}, src
 
 
 def fetch_go2rtc_frame_bytes(config: dict[str, Any], camera: dict[str, Any], timeout: int, attempts: int = 3) -> tuple[bytes, str]:
@@ -241,7 +253,12 @@ def record_go2rtc_clip(config: dict[str, Any], camera: dict[str, Any], output_pa
     seconds = int(camera.get("record_seconds", config.get("teldrive_record_seconds", 10)))
     response = requests.get(
         f"{base_url}/api/stream.mp4",
-        params={"src": src, "duration": seconds, "filename": output_path.name},
+        params={
+            "src": video_only_source(src),
+            "duration": seconds,
+            "filename": output_path.name,
+            "mp4": "h264,h265",
+        },
         stream=True,
         timeout=seconds + 30,
     )
@@ -255,44 +272,6 @@ def record_go2rtc_clip(config: dict[str, Any], camera: dict[str, Any], output_pa
         logger.info("[RECORD] go2rtc mp4 clip saved src=%s file=%s", src, output_path.name)
         return output_path
     return None
-
-
-def transcode_to_h264_mp4(source_path: Path, target_path: Path) -> Path:
-    ffmpeg = shutil.which("ffmpeg")
-    if not ffmpeg:
-        logger.warning("[RECORD] ffmpeg not found, keeping raw clip=%s", source_path.name)
-        return source_path
-
-    cmd = [
-        ffmpeg,
-        "-y",
-        "-i",
-        str(source_path),
-        "-an",
-        "-c:v",
-        "libx264",
-        "-profile:v",
-        "baseline",
-        "-level",
-        "3.1",
-        "-pix_fmt",
-        "yuv420p",
-        "-vf",
-        "scale=trunc(iw/2)*2:trunc(ih/2)*2",
-        "-movflags",
-        "+faststart",
-        str(target_path),
-    ]
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
-    if result.returncode != 0 or not target_path.exists() or target_path.stat().st_size == 0:
-        logger.warning("[RECORD] ffmpeg h264 transcode failed: %s", (result.stderr or result.stdout)[-500:])
-        return source_path
-    try:
-        if source_path != target_path:
-            source_path.unlink()
-    except OSError:
-        pass
-    return target_path
 
 
 def record_and_upload_clip(
@@ -366,9 +345,9 @@ def record_and_upload_clip(
             writer.release()
 
     if raw_path and raw_path.exists() and raw_path.stat().st_size > 0:
-        video_path = transcode_to_h264_mp4(raw_path, final_path)
-        uploaded = upload_event_video_safe(config, video_path, camera_name)
-        cleanup_recording_if_needed(camera, video_path, uploaded)
+        logger.info("[RECORD] raw clip saved file=%s", raw_path.name)
+        uploaded = upload_event_video_safe(config, raw_path, camera_name)
+        cleanup_recording_if_needed(camera, raw_path, uploaded)
 
 
 def capture_snapshot(config: dict[str, Any], output_path: Path = SNAPSHOT_PATH) -> Path:
@@ -506,6 +485,7 @@ def capture_latest_frames(index: int, config: dict[str, Any], camera: dict[str, 
     if cap is not None:
         cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
     last_reconnect_event = 0.0
+    go2rtc_frame_interval = max(float(config.get("go2rtc_frame_interval", 1.0) or 1.0), float(config.get("loop_sleep", 0.2) or 0.2))
 
     try:
         while not stop_event.is_set():
@@ -542,7 +522,7 @@ def capture_latest_frames(index: int, config: dict[str, Any], camera: dict[str, 
                 holder["seq"] = int(holder.get("seq", 0)) + 1
 
             if use_go2rtc:
-                time.sleep(float(config.get("loop_sleep", 0.2)))
+                time.sleep(go2rtc_frame_interval)
     finally:
         if cap is not None:
             cap.release()
