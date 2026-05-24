@@ -209,10 +209,20 @@
       border-radius: 50%;
       background: var(--faint);
       box-shadow: 0 0 0 4px rgba(104, 119, 141, .14);
+      position: relative;
     }
-    .dot.running, .dot.good { background: var(--good); box-shadow: 0 0 0 4px rgba(34, 197, 94, .16); }
+    .dot.running {
+      background: var(--good);
+      box-shadow: 0 0 0 4px rgba(34, 197, 94, .16);
+      animation: radar-pulse 1.8s infinite;
+    }
+    .dot.good { background: var(--good); box-shadow: 0 0 0 4px rgba(34, 197, 94, .16); }
     .dot.bad { background: var(--bad); box-shadow: 0 0 0 4px rgba(244, 63, 94, .16); }
     .dot.warn { background: var(--warn); box-shadow: 0 0 0 4px rgba(245, 158, 11, .16); }
+    @keyframes radar-pulse {
+      0% { box-shadow: 0 0 0 0px rgba(34, 197, 94, 0.45), 0 0 0 0px rgba(34, 197, 94, 0.2); }
+      100% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0), 0 0 0 16px rgba(34, 197, 94, 0); }
+    }
 
     .view { display: none; }
     .view.active { display: block; animation: fade-in .16s ease-out; }
@@ -456,6 +466,113 @@
     .toast.bad { border-left-color: var(--bad); }
     @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
+    /* System Gauge Progress Bars */
+    .system-gauge {
+      display: grid;
+      gap: 6px;
+    }
+    .system-gauge span {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .system-gauge b {
+      color: var(--text);
+      font-family: "Fira Code", monospace;
+      font-size: 12px;
+    }
+    .gauge-bar {
+      height: 6px;
+      background: rgba(2, 6, 23, 0.4);
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .gauge-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--info), var(--good));
+      border-radius: 3px;
+      box-shadow: 0 0 8px rgba(34, 197, 94, 0.4);
+      transition: width 0.4s ease, background 0.4s ease, box-shadow 0.4s ease;
+    }
+    .gauge-fill.warn {
+      background: linear-gradient(90deg, var(--info), var(--warn));
+      box-shadow: 0 0 8px rgba(245, 158, 11, 0.3);
+    }
+    .gauge-fill.crit {
+      background: linear-gradient(90deg, var(--warn), var(--bad));
+      box-shadow: 0 0 8px rgba(244, 63, 94, 0.4);
+    }
+
+    /* Incident Row Styles */
+    .incident-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(2, 6, 23, 0.24);
+      transition: all 0.2s ease;
+    }
+    .incident-row.emergency {
+      border-color: rgba(244, 63, 94, 0.4);
+      background: linear-gradient(90deg, rgba(244, 63, 94, 0.08) 0%, rgba(2, 6, 23, 0.3) 100%);
+      box-shadow: 0 0 15px rgba(244, 63, 94, 0.04);
+    }
+    .incident-thumb {
+      width: 60px;
+      aspect-ratio: 16 / 9;
+      border-radius: 4px;
+      object-fit: cover;
+      border: 1px solid var(--line);
+      cursor: pointer;
+      transition: border-color 0.2s ease, filter 0.2s ease;
+      flex-shrink: 0;
+    }
+    .incident-thumb:hover {
+      border-color: var(--info);
+      filter: brightness(1.15);
+    }
+    .incident-thumb-empty {
+      width: 60px;
+      aspect-ratio: 16 / 9;
+      border-radius: 4px;
+      border: 1px dashed var(--line-strong);
+      display: grid;
+      place-items: center;
+      color: var(--faint);
+      flex-shrink: 0;
+    }
+    .incident-thumb-empty svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    /* Camera Card Premium */
+    .camera-card-premium {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(2, 6, 23, 0.16);
+      padding: 12px;
+      transition: all 0.22s ease;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .camera-card-premium.enabled {
+      border-color: rgba(34, 197, 94, 0.2);
+    }
+    .camera-card-premium.enabled:hover {
+      border-color: rgba(34, 197, 94, 0.45);
+      background: rgba(34, 197, 94, 0.03);
+      box-shadow: 0 4px 15px rgba(34, 197, 94, 0.04);
+    }
+    .camera-card-premium.disabled {
+      opacity: 0.65;
+    }
+
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after {
         animation-duration: .01ms !important;
@@ -585,11 +702,22 @@
                 <p>Current host resource usage.</p>
               </div>
             </div>
-            <div class="stack">
-              <div class="metric-line"><span>CPU</span><b id="cpuPercent">0%</b></div>
-              <div class="metric-line"><span>RAM</span><b id="ramPercent">0%</b></div>
-              <div class="metric-line"><span>Disk</span><b id="diskPercent">0%</b></div>
-              <div class="metric-line"><span>Used</span><b id="diskUsed">0 GB</b></div>
+            <div class="stack" style="gap: 14px;">
+              <div class="system-gauge">
+                <div class="split"><span>CPU Usage</span><b id="cpuPercent">0%</b></div>
+                <div class="gauge-bar"><div id="cpuBar" class="gauge-fill" style="width: 0%;"></div></div>
+              </div>
+              <div class="system-gauge">
+                <div class="split"><span>RAM Usage</span><b id="ramPercent">0%</b></div>
+                <div class="gauge-bar"><div id="ramBar" class="gauge-fill" style="width: 0%;"></div></div>
+              </div>
+              <div class="system-gauge">
+                <div class="split"><span>Disk Space</span><b id="diskPercent">0%</b></div>
+                <div class="gauge-bar"><div id="diskBar" class="gauge-fill" style="width: 0%;"></div></div>
+              </div>
+              <div class="metric-line" style="margin-top: 4px; padding-top: 8px; border-top: 1px solid var(--line);">
+                <span>Used Storage</span><b id="diskUsed">0 GB</b>
+              </div>
             </div>
           </section>
         </div>
@@ -608,11 +736,13 @@
           <section class="panel">
             <div class="panel-head">
               <div>
-                <h3>Camera Detail</h3>
-                <p>Open a camera to review its events, recordings, and live source.</p>
+                <h3>Recent Incidents</h3>
+                <p>Latest camera events and AI verifications.</p>
               </div>
             </div>
-            <div id="dashboardEvents" class="empty">Open a camera from the Cameras screen to view its detail timeline.</div>
+            <div id="dashboardRecentIncidents" class="stack" style="gap: 10px;">
+              <div class="empty">No recent incidents recorded.</div>
+            </div>
           </section>
         </div>
       </section>
@@ -1141,13 +1271,34 @@
       $("aiBadge").className = `badge ${badgeClass(status.last_ai_result)}`;
       $("aiBadge").textContent = status.last_ai_result || "Idle";
       setText("lastVerify", `Xác minh gần nhất: ${formatTimeUtc7(status.last_verify_at || status.last_verify)}`);
-      setText("cpuPercent", `${system.cpu_percent ?? 0}%`);
-      setText("ramPercent", `${system.ram_percent ?? 0}%`);
-      setText("diskPercent", `${system.disk_percent ?? 0}%`);
+      
+      const cpuVal = system.cpu_percent ?? 0;
+      const ramVal = system.ram_percent ?? 0;
+      const diskVal = system.disk_percent ?? 0;
+      
+      setText("cpuPercent", `${cpuVal}%`);
+      setText("ramPercent", `${ramVal}%`);
+      setText("diskPercent", `${diskVal}%`);
       setText("diskUsed", `${system.disk_used_gb ?? 0} / ${system.disk_total_gb ?? 0} GB`);
-      setText("sideCpu", `${system.cpu_percent ?? 0}%`);
-      setText("sideRam", `${system.ram_percent ?? 0}%`);
-      setText("sideDisk", `${system.disk_percent ?? 0}%`);
+      setText("sideCpu", `${cpuVal}%`);
+      setText("sideRam", `${ramVal}%`);
+      setText("sideDisk", `${diskVal}%`);
+
+      const cpuBar = $("cpuBar");
+      if (cpuBar) {
+        cpuBar.style.width = `${cpuVal}%`;
+        cpuBar.className = `gauge-fill ${cpuVal > 85 ? "crit" : cpuVal > 65 ? "warn" : ""}`;
+      }
+      const ramBar = $("ramBar");
+      if (ramBar) {
+        ramBar.style.width = `${ramVal}%`;
+        ramBar.className = `gauge-fill ${ramVal > 85 ? "crit" : ramVal > 65 ? "warn" : ""}`;
+      }
+      const diskBar = $("diskBar");
+      if (diskBar) {
+        diskBar.style.width = `${diskVal}%`;
+        diskBar.className = `gauge-fill ${diskVal > 90 ? "crit" : diskVal > 75 ? "warn" : ""}`;
+      }
     }
 
     function renderDashboard() {
@@ -1157,16 +1308,83 @@
 
       const cameraList = $("dashboardCameras");
       if (!state.cameras.length) {
+        cameraList.className = "stack";
         cameraList.innerHTML = '<div class="empty">No cameras configured. Add a camera to start monitoring.</div>';
       } else {
-        cameraList.innerHTML = state.cameras.slice(0, 5).map((camera, index) => `
-          <div class="camera-card">
-            <div class="camera-title">
-              <div><h3>${esc(cameraName(camera, index))}</h3><p>${esc(camera.go2rtc_src || camera.rtsp_url || camera.live_url || "No source")}</p></div>
-              <span class="badge ${camera.enabled ? "good" : "bad"}">${camera.enabled ? "Enabled" : "Disabled"}</span>
+        cameraList.className = "grid cols-2";
+        cameraList.innerHTML = state.cameras.slice(0, 6).map((camera, index) => {
+          const name = cameraName(camera, index);
+          
+          let actionHtml = "";
+          if (camera.enabled) {
+            actionHtml = `
+              <div class="actions" style="margin-top: 8px;">
+                <button class="btn small ghost dash-cam-preview" data-index="${index}" type="button" title="Quick view snapshot"><span data-icon="camera"></span>Snapshot</button>
+                <button class="btn small dash-cam-live" data-index="${index}" type="button" title="View live stream"><span data-icon="monitor"></span>Live</button>
+              </div>
+            `;
+          }
+          
+          return `
+            <div class="camera-card-premium ${camera.enabled ? "enabled" : "disabled"}">
+              <div class="split">
+                <strong class="truncate" style="font-size: 13px;">${esc(name)}</strong>
+                <span class="badge small ${camera.enabled ? "good" : "bad"}">${camera.enabled ? "Active" : "Inactive"}</span>
+              </div>
+              <p class="muted truncate" style="font-size: 11px; margin-top: 4px; margin-bottom: 4px;">${esc(camera.go2rtc_src || camera.rtsp_url || "No feed URL")}</p>
+              ${actionHtml}
             </div>
-          </div>
-        `).join("");
+          `;
+        }).join("");
+        
+        cameraList.querySelectorAll("[data-icon]").forEach(el => { el.innerHTML = icons[el.dataset.icon] || ""; });
+      }
+    }
+
+    async function loadRecentIncidents() {
+      try {
+        const data = await api("/api/events?page=1&limit=5");
+        const list = $("dashboardRecentIncidents");
+        if (!list) return;
+        
+        const events = data.events || [];
+        if (!events.length) {
+          list.innerHTML = '<div class="empty">No recent incidents recorded.</div>';
+          return;
+        }
+        
+        list.innerHTML = events.map(event => {
+          const timeStr = formatTimeUtc7(event.time || event.time_local);
+          const desc = eventDescription(event);
+          const result = event.ai_result || "INFO";
+          const isEmergency = result.toUpperCase() === "EMERGENCY";
+          const rowClass = isEmergency ? "incident-row emergency" : "incident-row";
+          
+          let imgHtml = "";
+          if (event.image_url) {
+            imgHtml = `<img class="incident-thumb view-image" data-url="${esc(event.image_url)}" data-title="${esc(event.camera)} - ${esc(result)}" src="${esc(event.image_url)}" alt="thumbnail">`;
+          } else {
+            imgHtml = `<div class="incident-thumb-empty"><span data-icon="camera"></span></div>`;
+          }
+          
+          return `
+            <div class="${rowClass}">
+              ${imgHtml}
+              <div class="incident-info" style="flex: 1; min-width: 0;">
+                <div class="split">
+                  <strong class="truncate" style="font-size: 13px;">${esc(event.camera || "System")}</strong>
+                  <span class="badge small ${badgeClass(result)}">${esc(result)}</span>
+                </div>
+                <p class="muted truncate" style="font-size: 12px; margin-top: 4px;" title="${esc(desc)}">${esc(desc)}</p>
+                <span class="incident-time" style="font-size: 10px; color: var(--faint); display: block; margin-top: 4px;">${esc(timeStr)}</span>
+              </div>
+            </div>
+          `;
+        }).join("");
+        
+        list.querySelectorAll("[data-icon]").forEach(el => { el.innerHTML = icons[el.dataset.icon] || ""; });
+      } catch (err) {
+        console.error("Failed to load recent incidents", err);
       }
     }
 
@@ -1269,6 +1487,21 @@
 
       const imageBtn = event.target.closest(".view-image");
       if (imageBtn) showViewer(imageBtn.dataset.title || "Image", imageBtn.dataset.url, "image");
+
+      const camPreview = event.target.closest(".dash-cam-preview");
+      if (camPreview) {
+        const index = Number(camPreview.dataset.index);
+        const name = cameraName(state.cameras[index], index);
+        showViewer(`${name} Snapshot`, cameraSnapshotUrl(index, true), "image");
+      }
+
+      const camLive = event.target.closest(".dash-cam-live");
+      if (camLive) {
+        const index = Number(camLive.dataset.index);
+        const name = cameraName(state.cameras[index], index);
+        const source = liveSource(state.cameras[index], index);
+        showViewer(`${name} Live Feed`, source.url, source.mode);
+      }
 
       const editPrompt = event.target.closest(".prompt-edit");
       if (editPrompt) openPromptDialog(Number(editPrompt.dataset.index));
@@ -1433,10 +1666,14 @@
       try {
         await loadConfig();
         await loadStatus();
+        await loadRecentIncidents();
       } catch (err) {
         showToast(err.message || "Failed to load application data", "err");
       }
-      setInterval(() => loadStatus().catch(() => {}), 5000);
+      setInterval(() => {
+        loadStatus().catch(() => {});
+        loadRecentIncidents().catch(() => {});
+      }, 5000);
     })();
   </script>
 </body>
