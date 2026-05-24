@@ -8,80 +8,482 @@
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@500;600;700&family=Fira+Sans:wght@400;500;600;700&display=swap');
     :root {
-      --bg:#020617; --surface:#0f172a; --surface-2:#111c2f; --line:#26364d; --line-strong:#3d506c;
-      --text:#f8fafc; --muted:#9aa8bd; --good:#22c55e; --info:#38bdf8; --bad:#f43f5e; --warn:#f59e0b;
-      --radius:8px; --sidebar:272px;
+      --bg: #020617;
+      --bg-soft: #07111f;
+      --surface: #0f172a;
+      --surface-2: #111c2f;
+      --surface-3: #1e293b;
+      --line: #26364d;
+      --line-strong: #3d506c;
+      --text: #f8fafc;
+      --muted: #9aa8bd;
+      --faint: #68778d;
+      --good: #22c55e;
+      --info: #38bdf8;
+      --warn: #f59e0b;
+      --bad: #f43f5e;
+      --violet: #a78bfa;
+      --shadow: 0 24px 80px rgba(0, 0, 0, .34);
+      --radius: 8px;
+      --sidebar: 272px;
     }
-    * { box-sizing:border-box; }
+
+    * { box-sizing: border-box; }
+    *::selection { background: rgba(34, 197, 94, .24); }
+    html { min-height: 100%; background: var(--bg); }
     body {
-      margin:0; min-height:100vh; color:var(--text);
-      font:14px/1.45 "Fira Sans", Arial, sans-serif;
-      background:radial-gradient(circle at 18% -12%, rgba(56,189,248,.15), transparent 31rem), linear-gradient(180deg,#020617,#07111f);
+      min-height: 100vh;
+      margin: 0;
+      background:
+        radial-gradient(circle at 18% -12%, rgba(56, 189, 248, .15), transparent 31rem),
+        radial-gradient(circle at 88% 4%, rgba(34, 197, 94, .12), transparent 28rem),
+        linear-gradient(180deg, #020617 0%, #07111f 100%);
+      color: var(--text);
+      font: 14px/1.45 "Fira Sans", Arial, sans-serif;
     }
-    h1,h2,h3,p { margin:0; } h1,h2,h3,.mono { font-family:"Fira Code", ui-monospace, Consolas, monospace; }
-    a { color:var(--info); text-decoration:none; } button,input,select { font:inherit; } button,select { cursor:pointer; }
-    .app { min-height:100vh; display:grid; grid-template-columns:var(--sidebar) minmax(0,1fr); }
-    .sidebar { position:sticky; top:0; height:100vh; padding:18px; border-right:1px solid var(--line); background:rgba(2,6,23,.78); display:flex; flex-direction:column; gap:18px; }
-    .brand { display:flex; align-items:center; gap:12px; min-height:54px; }
-    .brand-mark { width:44px; height:44px; border-radius:8px; display:grid; place-items:center; color:var(--good); border:1px solid rgba(34,197,94,.36); background:rgba(34,197,94,.12); }
-    .brand h1 { font-size:17px; } .brand p,.muted { color:var(--muted); }
-    .nav { display:grid; gap:6px; }
-    .nav a { min-height:42px; border:1px solid transparent; border-radius:8px; display:flex; align-items:center; gap:10px; padding:0 12px; color:var(--muted); }
-    .nav a.active,.nav a:hover { color:var(--text); border-color:rgba(34,197,94,.55); background:rgba(34,197,94,.12); }
-    .spacer { flex:1; }
-    .side-stats { border:1px solid var(--line); border-radius:8px; background:rgba(15,23,42,.72); padding:12px; display:grid; gap:7px; font-family:"Fira Code", monospace; font-size:12px; }
-    .side-stats div { display:flex; justify-content:space-between; }
-    .main { min-width:0; }
-    .topbar { position:sticky; top:0; z-index:10; min-height:80px; border-bottom:1px solid var(--line); background:rgba(7,17,31,.88); backdrop-filter:blur(14px); display:flex; justify-content:space-between; align-items:center; gap:14px; padding:14px 22px; }
-    .topbar h2 { font-size:21px; } .actions { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
-    .content { padding:18px 22px 34px; display:grid; gap:14px; }
-    .panel { border:1px solid var(--line); border-radius:8px; background:linear-gradient(180deg, rgba(15,23,42,.94), rgba(12,21,36,.94)); overflow:hidden; }
-    .panel-head { padding:16px; display:flex; justify-content:space-between; gap:12px; align-items:flex-start; border-bottom:1px solid rgba(38,54,77,.65); }
-    .panel-body { padding:16px; }
-    .btn { min-height:40px; border:1px solid var(--line-strong); border-radius:8px; background:rgba(15,23,42,.74); color:var(--text); padding:0 13px; display:inline-flex; align-items:center; justify-content:center; gap:8px; font-weight:700; }
-    .btn:hover { border-color:var(--info); background:rgba(56,189,248,.10); }
-    .btn.primary { background:var(--good); color:#04130a; border-color:rgba(34,197,94,.72); }
-    .btn.danger { color:#fecdd3; border-color:rgba(244,63,94,.72); background:rgba(244,63,94,.12); }
-    .btn.small { min-height:34px; padding:7px 9px; font-size:12px; }
-    .status-chip,.badge { display:inline-flex; align-items:center; min-height:28px; border:1px solid var(--line); border-radius:999px; padding:4px 10px; color:var(--muted); background:rgba(2,6,23,.28); font-weight:700; font-size:12px; }
-    .good { color:#bbf7d0; border-color:rgba(34,197,94,.44); background:rgba(34,197,94,.10); } .bad { color:#fecdd3; border-color:rgba(244,63,94,.44); background:rgba(244,63,94,.10); } .info { color:#bae6fd; border-color:rgba(56,189,248,.44); background:rgba(56,189,248,.10); }
-    .detail-grid { display:grid; grid-template-columns:minmax(0, 1.3fr) minmax(300px, .7fr); gap:14px; }
-    .live-card { border:1px solid var(--line); border-radius:8px; overflow:hidden; background:#000; min-height:310px; }
-    .live-card header { min-height:46px; padding:0 13px; display:flex; align-items:center; justify-content:space-between; background:rgba(15,23,42,.82); border-bottom:1px solid var(--line); }
-    .live-card iframe,.live-card img { width:100%; height:420px; border:0; display:block; object-fit:contain; background:#000; }
-    .metrics { border:1px solid var(--line); border-radius:8px; padding:14px; display:grid; align-content:start; gap:12px; min-height:310px; }
-    .metric-line { display:grid; grid-template-columns:115px minmax(0,1fr); gap:10px; align-items:start; }
-    .metric-line span { color:var(--muted); } .metric-line b { text-align:right; word-break:break-all; }
-    .toolbar { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:8px; }
-    select,input { min-height:40px; border:1px solid var(--line); border-radius:8px; background:#07111f; color:var(--text); padding:0 12px; }
-    table { width:100%; border-collapse:collapse; }
-    th,td { padding:12px; border-bottom:1px solid var(--line); text-align:left; vertical-align:middle; }
-    th { color:#b7d8ff; font-size:12px; background:rgba(2,6,23,.22); }
-    .event-thumb { width:78px; height:48px; object-fit:cover; border-radius:8px; border:1px solid var(--line); }
-    .empty { min-height:110px; display:grid; place-items:center; border:1px dashed var(--line-strong); border-radius:8px; color:#b7d8ff; }
-    .recordings-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
-    .recording-card { border:1px solid var(--line); border-radius:8px; overflow:hidden; background:rgba(2,6,23,.22); }
-    .recording-card video { width:100%; aspect-ratio:16/9; display:block; background:#000; }
-    .recording-card footer { padding:12px; display:flex; justify-content:space-between; gap:10px; align-items:center; }
-    .pager { padding:12px 16px; display:flex; justify-content:space-between; align-items:center; gap:10px; }
-    .toast { position:fixed; right:18px; bottom:18px; z-index:50; min-width:220px; border:1px solid var(--line); border-radius:8px; background:#0f172a; padding:12px 14px; box-shadow:0 16px 60px rgba(0,0,0,.45); }
-    dialog { border:1px solid var(--line-strong); border-radius:8px; background:#0f172a; color:var(--text); padding:0; width:min(440px, calc(100vw - 28px)); }
-    dialog::backdrop { background:rgba(0,0,0,.58); backdrop-filter:blur(3px); }
-    .dialog-body { padding:18px; display:grid; gap:12px; }
-    @media (max-width: 980px) { .app { grid-template-columns:1fr; } .sidebar { position:static; height:auto; } .detail-grid,.recordings-grid { grid-template-columns:1fr; } .topbar { position:static; } }
+
+    button, input, textarea, select { font: inherit; }
+    button, a, select, input[type="checkbox"] { cursor: pointer; }
+    button:disabled { cursor: not-allowed; opacity: .55; }
+    a { color: var(--info); text-decoration: none; }
+    h1, h2, h3, p { margin: 0; }
+    h1, h2, h3, .mono { font-family: "Fira Code", ui-monospace, SFMono-Regular, Consolas, monospace; }
+    .hidden { display: none !important; }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: var(--sidebar) minmax(0, 1fr);
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 18px;
+      border-right: 1px solid var(--line);
+      background: rgba(2, 6, 23, .78);
+      backdrop-filter: blur(18px);
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      z-index: 20;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-height: 54px;
+    }
+
+    .brand-mark, .icon-box {
+      width: 44px;
+      height: 44px;
+      border-radius: var(--radius);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--good);
+      background: linear-gradient(180deg, rgba(34, 197, 94, .16), rgba(56, 189, 248, .08));
+      border: 1px solid rgba(34, 197, 94, .36);
+      box-shadow: inset 0 0 28px rgba(34, 197, 94, .08), 0 0 22px rgba(34, 197, 94, .10);
+      flex: 0 0 auto;
+    }
+
+    .brand-mark svg, .icon-box svg, .btn svg, .nav-btn svg, .status-chip svg {
+      width: 20px;
+      height: 20px;
+      stroke: currentColor;
+      stroke-width: 1.8;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      flex: 0 0 auto;
+    }
+
+    .brand h1 { font-size: 17px; letter-spacing: 0; }
+    .brand p { color: var(--muted); font-size: 12px; margin-top: 2px; }
+
+    .nav {
+      display: grid;
+      gap: 6px;
+    }
+
+    .nav-btn {
+      width: 100%;
+      min-height: 42px;
+      border: 1px solid transparent;
+      border-radius: var(--radius);
+      background: transparent;
+      color: var(--muted);
+      padding: 9px 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-align: left;
+      transition: background .18s ease, border-color .18s ease, color .18s ease;
+    }
+
+    .nav-btn:hover { color: var(--text); background: rgba(30, 41, 59, .62); }
+    .nav-btn.active {
+      color: var(--text);
+      border-color: rgba(34, 197, 94, .42);
+      background: rgba(34, 197, 94, .12);
+    }
+
+    .spacer { flex: 1; }
+
+    .side-stats {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(15, 23, 42, .78);
+      padding: 12px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .side-stats div {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .side-stats b { color: var(--text); font-family: "Fira Code", monospace; }
+
+    .main {
+      min-width: 0;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      min-height: 72px;
+      padding: 14px 22px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      border-bottom: 1px solid rgba(38, 54, 77, .84);
+      background: rgba(7, 17, 31, .82);
+      backdrop-filter: blur(18px);
+    }
+
+    .topbar h2 { font-size: 20px; }
+    .topbar p { color: var(--muted); margin-top: 3px; }
+
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .content { padding: 18px 22px 34px; display: grid; gap: 14px; }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: linear-gradient(180deg, rgba(15, 23, 42, .94), rgba(12, 21, 36, .94));
+      box-shadow: 0 14px 42px rgba(0, 0, 0, .18);
+      overflow: hidden;
+    }
+
+    .panel-head {
+      padding: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 14px;
+      border-bottom: 1px solid rgba(38, 54, 77, .65);
+    }
+    .panel-head h3 { font-size: 15px; }
+    .panel-head p { color: var(--muted); margin-top: 3px; }
+    .panel-body { padding: 16px; }
+
+    .btn {
+      min-height: 40px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius);
+      background: rgba(30, 41, 59, .62);
+      color: var(--text);
+      padding: 9px 12px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-weight: 700;
+      transition: background .18s ease, border-color .18s ease, color .18s ease, opacity .18s ease;
+      white-space: nowrap;
+    }
+    .btn:hover { border-color: var(--info); background: rgba(56, 189, 248, .10); }
+    .btn.primary { border-color: rgba(34, 197, 94, .68); background: var(--good); color: #04130a; }
+    .btn.primary:hover { background: #4ade80; }
+    .btn.danger { border-color: rgba(244, 63, 94, .72); color: #fecdd3; background: rgba(244, 63, 94, .12); }
+    .btn.danger:hover { background: rgba(244, 63, 94, .20); }
+    .btn.ghost { background: transparent; }
+    .btn.small { min-height: 34px; padding: 7px 9px; font-size: 12px; }
+
+    .status-chip, .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 28px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 4px 9px;
+      color: var(--muted);
+      background: rgba(2, 6, 23, .28);
+      font-weight: 700;
+      font-size: 12px;
+    }
+    .status-chip { min-height: 38px; padding: 8px 12px; border-radius: 999px; }
+    .status-chip.good { border-color: rgba(34, 197, 94, .44); background: rgba(34, 197, 94, .10); color: #bbf7d0; }
+    
+    .badge.good { color: #bbf7d0; border-color: rgba(34, 197, 94, .44); background: rgba(34, 197, 94, .10); }
+    .badge.bad { color: #fecdd3; border-color: rgba(244, 63, 94, .44); background: rgba(244, 63, 94, .10); }
+    .badge.warn { color: #fde68a; border-color: rgba(245, 158, 11, .44); background: rgba(245, 158, 11, .10); }
+    .badge.info { color: #bae6fd; border-color: rgba(56, 189, 248, .44); background: rgba(56, 189, 248, .10); }
+
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--faint);
+      box-shadow: 0 0 0 4px rgba(104, 119, 141, .14);
+      position: relative;
+    }
+    .dot.running {
+      background: var(--good);
+      box-shadow: 0 0 0 4px rgba(34, 197, 94, .16);
+      animation: radar-pulse 1.8s infinite;
+    }
+    @keyframes radar-pulse {
+      0% { box-shadow: 0 0 0 0px rgba(34, 197, 94, 0.45), 0 0 0 0px rgba(34, 197, 94, 0.2); }
+      100% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0), 0 0 0 16px rgba(34, 197, 94, 0); }
+    }
+
+    /* Detail Grid Layout */
+    .detail-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.65fr); gap: 14px; }
+    .live-card { border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: #000; display: flex; flex-direction: column; }
+    .live-card header { min-height: 46px; padding: 0 14px; display: flex; align-items: center; justify-content: space-between; background: rgba(15, 23, 42, .82); border-bottom: 1px solid var(--line); }
+    .live-card iframe, .live-card img { width: 100%; aspect-ratio: 16 / 9; border: 0; display: block; object-fit: contain; background: #000; }
+    
+    .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-content: start; }
+    .metric-card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(15, 23, 42, 0.6);
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+    .metric-card:hover {
+      border-color: rgba(56, 189, 248, 0.35);
+      background: rgba(15, 23, 42, 0.8);
+    }
+    .metric-card.full-width { grid-column: span 2; }
+    .metric-card-label { color: var(--muted); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px; }
+    .metric-card-value { font-family: "Fira Code", monospace; font-size: 13px; color: var(--text); word-break: break-all; margin-top: 2px; }
+
+    .toolbar { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+    select, input {
+      min-height: 40px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(2, 6, 23, .42);
+      color: var(--text);
+      padding: 9px 11px;
+      outline: none;
+      transition: border-color .18s ease, box-shadow .18s ease;
+    }
+    select:focus, input:focus {
+      border-color: var(--good);
+      box-shadow: 0 0 0 3px rgba(34, 197, 94, .16);
+    }
+
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; }
+    th { color: var(--muted); font-size: 12px; font-weight: 700; background: rgba(2, 6, 23, .22); }
+    td { color: #dbe5f4; }
+    tr:hover td { background: rgba(30, 41, 59, .22); }
+
+    .event-thumb { width: 78px; height: 48px; object-fit: cover; border-radius: 4px; border: 1px solid var(--line); cursor: pointer; transition: transform 0.2s ease, border-color 0.2s ease; }
+    .event-thumb:hover { transform: scale(1.05); border-color: var(--info); }
+    .empty {
+      min-height: 110px;
+      border: 1px dashed var(--line-strong);
+      border-radius: var(--radius);
+      display: grid;
+      place-items: center;
+      padding: 18px;
+      color: var(--muted);
+      text-align: center;
+      background: rgba(2, 6, 23, .22);
+    }
+
+    /* Recordings */
+    .recordings-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .recording-card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: rgba(15, 23, 42, 0.6);
+      transition: all 0.22s ease;
+      display: flex;
+      flex-direction: column;
+    }
+    .recording-card:hover {
+      border-color: rgba(34, 197, 94, 0.35);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+    }
+    .recording-thumb-wrapper {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background: #000;
+      position: relative;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+    }
+    .recording-thumb-wrapper img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 0.75;
+      transition: opacity 0.2s ease;
+    }
+    .recording-thumb-wrapper:hover img {
+      opacity: 0.9;
+    }
+    .play-button-overlay {
+      position: absolute;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: rgba(34, 197, 94, 0.85);
+      color: #04130a;
+      display: grid;
+      place-items: center;
+      box-shadow: 0 0 15px rgba(34, 197, 94, 0.4);
+      transition: transform 0.2s ease, background 0.2s ease;
+    }
+    .recording-thumb-wrapper:hover .play-button-overlay {
+      transform: scale(1.1);
+      background: #4ade80;
+    }
+    .play-button-overlay svg {
+      width: 24px;
+      height: 24px;
+      fill: currentColor;
+    }
+    .recording-card footer { padding: 12px; display: flex; justify-content: space-between; gap: 10px; align-items: center; }
+
+    .pager { padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+    
+    /* Dialogs & Viewer */
+    dialog {
+      width: min(880px, calc(100vw - 28px));
+      max-height: calc(100vh - 28px);
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius);
+      padding: 0;
+      color: var(--text);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+    dialog::backdrop { background: rgba(0, 0, 0, .72); backdrop-filter: blur(4px); }
+    .dialog-head, .dialog-foot {
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 1px solid var(--line);
+    }
+    .dialog-foot { border-top: 1px solid var(--line); border-bottom: 0; justify-content: flex-end; }
+    .dialog-body { padding: 16px; overflow: auto; max-height: calc(100vh - 160px); }
+    .viewer-body { padding: 12px; background: #000; }
+    .viewer-body iframe, .viewer-body img, .viewer-body video {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      display: block;
+      border: 0;
+      background: #000;
+      object-fit: contain;
+    }
+
+    #confirmDialog {
+      width: min(440px, calc(100vw - 28px));
+    }
+
+    .toast {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      z-index: 200;
+      display: grid;
+      gap: 10px;
+      width: min(390px, calc(100vw - 28px));
+      pointer-events: none;
+      border: 1px solid var(--line);
+      border-left: 4px solid var(--info);
+      border-radius: var(--radius);
+      background: rgba(15, 23, 42, .96);
+      padding: 12px 14px;
+      box-shadow: var(--shadow);
+      color: var(--text);
+      font-weight: 700;
+      animation: toast-in .18s ease-out both;
+    }
+    .toast.good { border-left-color: var(--good); }
+    .toast.bad { border-left-color: var(--bad); }
+    @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    @media (max-width: 1100px) {
+      .app { grid-template-columns: 1fr; }
+      .sidebar {
+        position: static;
+        height: auto;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+      .nav { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+      .side-stats { display: none; }
+      .detail-grid, .recordings-grid { grid-template-columns: 1fr; }
+      .topbar { position: static; }
+    }
+
+    @media (max-width: 720px) {
+      .nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .topbar { align-items: stretch; flex-direction: column; }
+      .actions { align-items: stretch; flex-direction: column; }
+      .btn, .status-chip { width: 100%; }
+    }
   </style>
 </head>
 <body>
   <div class="app">
     <aside class="sidebar">
-      <div class="brand"><div class="brand-mark">FD</div><div><h1>Fall Detection</h1><p>Camera operations console</p></div></div>
-      <nav class="nav">
-        <a href="/">Dashboard</a>
-        <a class="active" href="/cameras">Cameras</a>
-        <a href="/prompts">Prompts</a>
-        <a href="/live">Live View</a>
-        <a href="/settings">Settings</a>
-        <a href="/tools">Tools</a>
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true" data-icon="shield-pulse"></div>
+        <div>
+          <h1>Fall Detection</h1>
+          <p>Camera operations console</p>
+        </div>
+      </div>
+      <nav class="nav" aria-label="Primary">
+        <a class="nav-btn" href="/"><span data-icon="layout"></span>Dashboard</a>
+        <a class="nav-btn active" href="/cameras"><span data-icon="camera"></span>Cameras</a>
+        <a class="nav-btn" href="/#prompts"><span data-icon="file-text"></span>Prompts</a>
+        <a class="nav-btn" href="/#live"><span data-icon="monitor"></span>Live View</a>
+        <a class="nav-btn" href="/#settings"><span data-icon="settings"></span>Settings</a>
+        <a class="nav-btn" href="/#tools"><span data-icon="wrench"></span>Tools</a>
       </nav>
       <div class="spacer"></div>
       <div class="side-stats">
@@ -89,16 +491,18 @@
         <div><span>RAM</span><b id="ramStat">-</b></div>
         <div><span>Disk</span><b id="diskStat">-</b></div>
       </div>
-      <a class="btn danger" href="/logout">Logout</a>
+      <form action="/auth/logout" method="post" style="width: 100%;">
+        <button class="btn danger" type="submit" style="width: 100%;"><span data-icon="logout"></span>Logout</button>
+      </form>
     </aside>
     <main class="main">
       <header class="topbar">
         <div><h2 id="pageTitle">Camera Detail</h2><p class="muted" id="pageMeta">Loading camera timeline.</p></div>
         <div class="actions">
-          <span id="monitorStatus" class="status-chip">Stopped</span>
-          <button id="startBtn" class="btn primary" type="button">Start</button>
-          <button id="stopBtn" class="btn danger" type="button">Stop</button>
-          <button id="refreshAllBtn" class="btn" type="button">Refresh</button>
+          <div class="status-chip"><span id="runDot" class="dot"></span><span id="monitorStatus">Stopped</span></div>
+          <button id="startBtn" class="btn primary" type="button"><span data-icon="play"></span>Start</button>
+          <button id="stopBtn" class="btn danger" type="button"><span data-icon="stop"></span>Stop</button>
+          <button id="refreshAllBtn" class="btn" type="button"><span data-icon="refresh"></span>Refresh</button>
         </div>
       </header>
       <section class="content">
@@ -106,9 +510,9 @@
           <div class="panel-head">
             <div><h3 id="cameraName">Camera</h3><p class="muted" id="cameraMeta">Loading source.</p></div>
             <div class="actions">
-              <a class="btn" href="/cameras">Back to cameras</a>
-              <button id="snapshotBtn" class="btn" type="button">Snapshot</button>
-              <button id="testAiBtn" class="btn primary" type="button">Test AI</button>
+              <a class="btn" href="/cameras"><span data-icon="arrow-left"></span>Back</a>
+              <button id="snapshotBtn" class="btn" type="button"><span data-icon="camera"></span>Snapshot</button>
+              <button id="testAiBtn" class="btn primary" type="button"><span data-icon="spark"></span>Test AI</button>
             </div>
           </div>
           <div class="panel-body detail-grid">
@@ -123,14 +527,14 @@
             <div class="toolbar">
               <select id="eventFilterAI"><option value="">All AI results</option><option>SAFE</option><option>EMERGENCY</option></select>
               <select id="eventPageSize"><option>10</option><option>25</option><option>50</option></select>
-              <button id="refreshEventsBtn" class="btn" type="button">Refresh</button>
-              <button id="clearEventsBtn" class="btn danger" type="button">Clear</button>
+              <button id="refreshEventsBtn" class="btn" type="button"><span data-icon="refresh"></span>Refresh</button>
+              <button id="clearEventsBtn" class="btn danger" type="button"><span data-icon="trash"></span>Clear</button>
             </div>
           </div>
           <div style="overflow:auto;">
             <table><thead><tr><th>Evidence</th><th>Time</th><th>Camera</th><th>Status</th><th>AI</th><th>Description</th></tr></thead><tbody id="eventsBody"></tbody></table>
           </div>
-          <div class="pager"><span id="eventsPageInfo" class="muted">Page 1</span><div class="actions"><button id="prevPageBtn" class="btn small">Previous</button><button id="nextPageBtn" class="btn small">Next</button></div></div>
+          <div class="pager"><span id="eventsPageInfo" class="muted">Page 1</span><div class="actions"><button id="prevPageBtn" class="btn small"><span data-icon="chevron-left"></span>Previous</button><button id="nextPageBtn" class="btn small">Next<span data-icon="chevron-right"></span></button></div></div>
         </section>
 
         <section class="panel">
@@ -140,20 +544,54 @@
               <input id="recordingDateFrom" type="date">
               <input id="recordingDateTo" type="date">
               <select id="recordingPageSize"><option>6</option><option>12</option><option>24</option></select>
-              <button id="refreshRecordingsBtn" class="btn" type="button">Refresh</button>
-              <button id="clearRecordingsBtn" class="btn danger" type="button">Clear recordings</button>
+              <button id="refreshRecordingsBtn" class="btn" type="button"><span data-icon="refresh"></span>Refresh</button>
+              <button id="clearRecordingsBtn" class="btn danger" type="button"><span data-icon="trash"></span>Clear recordings</button>
             </div>
           </div>
           <div class="panel-body"><div id="recordingsGrid" class="recordings-grid"></div></div>
-          <div class="pager"><span id="recordingsPageInfo" class="muted">Page 1</span><div class="actions"><button id="prevRecordingPageBtn" class="btn small">Previous</button><button id="nextRecordingPageBtn" class="btn small">Next</button></div></div>
+          <div class="pager"><span id="recordingsPageInfo" class="muted">Page 1</span><div class="actions"><button id="prevRecordingPageBtn" class="btn small"><span data-icon="chevron-left"></span>Previous</button><button id="nextRecordingPageBtn" class="btn small">Next<span data-icon="chevron-right"></span></button></div></div>
         </section>
       </section>
     </main>
   </div>
   <dialog id="confirmDialog"><div class="dialog-body"><h3 id="confirmTitle">Confirm</h3><p id="confirmMessage" class="muted"></p><b id="confirmScope"></b><div class="actions"><button class="btn" data-cancel type="button">Cancel</button><button id="confirmActionBtn" class="btn danger" type="button">Confirm</button></div></div></dialog>
+  <dialog id="viewerDialog">
+    <div class="dialog-head">
+      <div><h3 id="viewerTitle">Viewer</h3><p class="muted">Evidence preview</p></div>
+      <div class="actions">
+        <button id="openViewerBtn" class="btn small" type="button">Open tab</button>
+        <button class="btn small" data-close-dialog="viewerDialog" type="button">Close</button>
+      </div>
+    </div>
+    <div id="viewerBody" class="viewer-body"></div>
+  </dialog>
   <script>
+    const icons = {
+      "shield-pulse": '<svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.7-2.8 8.4-7 10-4.2-1.6-7-5.3-7-10V6l7-3z"/><path d="M8 12h2l1.2-3 2.1 6 1.1-3H16"/></svg>',
+      layout: '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="18" height="7"/></svg>',
+      camera: '<svg viewBox="0 0 24 24"><path d="M14 7l-1.4-2H8L6.6 7H4a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><circle cx="12" cy="13" r="3"/></svg>',
+      "file-text": '<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h6"/></svg>',
+      monitor: '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>',
+      settings: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3h.1a1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.6h.1a1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9v.1a1.7 1.7 0 0 0 1.6 1h.1a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.6 1z"/></svg>',
+      wrench: '<svg viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 0-5 5L3 18v3h3l6.7-6.7a4 4 0 0 0 5-5l-2.4 2.4-2.6-2.6z"/></svg>',
+      play: '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>',
+      stop: '<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12"/></svg>',
+      refresh: '<svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 0 1-15.4 6.4L3 16"/><path d="M3 21v-5h5"/><path d="M3 12A9 9 0 0 1 18.4 5.6L21 8"/><path d="M21 3v5h-5"/></svg>',
+      logout: '<svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>',
+      spark: '<svg viewBox="0 0 24 24"><path d="M13 2l-2 7-7 2 7 2 2 7 2-7 7-2-7-2z"/></svg>',
+      trash: '<svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>',
+      "arrow-left": '<svg viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>',
+      "chevron-left": '<svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>',
+      "chevron-right": '<svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>',
+      video: '<svg viewBox="0 0 24 24"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="M17 9l4-2v10l-4-2z"/></svg>',
+      "prompt-icon": '<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8M16 17H8"/></svg>',
+      "link-icon": '<svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>'
+    };
+
+    document.querySelectorAll("[data-icon]").forEach(el => { el.innerHTML = icons[el.dataset.icon] || ""; });
+
     const routeCameraName = {{ camera_name|tojson }};
-    const state = { index:-1, camera:null, prompts:[], go2rtcUrl:"", eventsPage:1, eventsTotal:0, recordingsPage:1, recordingsTotal:0, liveTimer:null };
+    const state = { index:-1, camera:null, prompts:[], go2rtcUrl:"", eventsPage:1, eventsTotal:0, recordingsPage:1, recordingsTotal:0, liveTimer:null, viewerUrl:"", viewerMode:"image" };
     const $ = id => document.getElementById(id);
     const esc = value => String(value ?? "").replace(/[&<>"']/g, ch => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[ch]));
     function setText(id, value) { const el = $(id); if (el) el.textContent = value; }
@@ -234,11 +672,27 @@
         card.insertAdjacentHTML("beforeend", `<div class="empty">No live source configured.</div>`);
       }
       $("cameraMetrics").innerHTML = `
-        <div class="metric-line"><span>Status</span><b>${camera.enabled ? "Enabled" : "Disabled"}</b></div>
-        <div class="metric-line"><span>Prompt</span><b>${esc(promptTitle(camera.prompt_id))}</b></div>
-        <div class="metric-line"><span>Record</span><b>${camera.teldrive_record_enabled ? "On" : "Off"}</b></div>
-        <div class="metric-line"><span>go2rtc</span><b>${esc(camera.go2rtc_src || "-")}</b></div>
-        <div class="metric-line"><span>Live mode</span><b>${esc(source.mode)}</b></div>`;
+        <div class="metric-card">
+          <div class="metric-card-label"><span data-icon="shield-pulse"></span>Status</div>
+          <div class="metric-card-value"><span class="badge ${camera.enabled ? "good" : "bad"}">${camera.enabled ? "Enabled" : "Disabled"}</span></div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-card-label"><span data-icon="prompt-icon"></span>Prompt</div>
+          <div class="metric-card-value truncate" title="${esc(promptTitle(camera.prompt_id))}">${esc(promptTitle(camera.prompt_id))}</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-card-label"><span data-icon="video"></span>Recordings</div>
+          <div class="metric-card-value"><span class="badge ${camera.teldrive_record_enabled ? "good" : "info"}">${camera.teldrive_record_enabled ? "Active" : "Disabled"}</span></div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-card-label"><span data-icon="monitor"></span>Live Mode</div>
+          <div class="metric-card-value">${esc(source.mode.toUpperCase())}</div>
+        </div>
+        <div class="metric-card full-width">
+          <div class="metric-card-label"><span data-icon="link-icon"></span>go2rtc Source</div>
+          <div class="metric-card-value truncate" title="${esc(camera.go2rtc_src || "-")}">${esc(camera.go2rtc_src || "-")}</div>
+        </div>`;
+      $("cameraMetrics").querySelectorAll("[data-icon]").forEach(el => { el.innerHTML = icons[el.dataset.icon] || ""; });
     }
     async function loadCamera() {
       const data = await api(`/api/camera/detail/${encodeURIComponent(routeCameraName)}`);
@@ -251,8 +705,10 @@
       setText("cameraName", state.camera.name || routeCameraName);
       setText("pageMeta", "Review one camera timeline and recordings.");
       setText("cameraMeta", `${state.camera.enabled ? "Enabled" : "Disabled"} - ${state.camera.go2rtc_src || state.camera.rtsp_url || state.camera.live_url || "No source"}`);
-      $("monitorStatus").textContent = status.running ? "Running" : "Stopped";
-      $("monitorStatus").className = `status-chip ${status.running ? "good" : ""}`;
+      
+      const running = status.running;
+      $("monitorStatus").textContent = running ? "Running" : "Stopped";
+      $("runDot").className = `dot ${running ? "running" : "bad"}`;
       renderLive();
     }
     async function loadStatus() {
@@ -261,8 +717,10 @@
       setText("cpuStat", `${system.cpu_percent ?? "-"}%`);
       setText("ramStat", `${system.ram_percent ?? "-"}%`);
       setText("diskStat", `${system.disk_percent ?? "-"}%`);
-      $("monitorStatus").textContent = data.status?.running ? "Running" : "Stopped";
-      $("monitorStatus").className = `status-chip ${data.status?.running ? "good" : ""}`;
+      
+      const running = data.status?.running;
+      $("monitorStatus").textContent = running ? "Running" : "Stopped";
+      $("runDot").className = `dot ${running ? "running" : "bad"}`;
     }
     async function loadEvents() {
       const limit = Number($("eventPageSize").value || 10);
@@ -272,7 +730,7 @@
       const events = data.events || [];
       $("eventsBody").innerHTML = events.length ? events.map(event => `
         <tr>
-          <td>${event.image_url ? `<a href="${esc(event.image_url)}" target="_blank"><img class="event-thumb" src="${esc(event.image_url)}" loading="lazy" alt="Event image"></a>` : '<span class="badge">No image</span>'}</td>
+          <td>${event.image_url ? `<img class="event-thumb view-event-image" src="${esc(event.image_url)}" data-url="${esc(event.image_url)}" data-title="${esc(event.camera || "Camera")} - ${esc(event.ai_result || "Event")}" loading="lazy" alt="Event image">` : '<span class="badge">No image</span>'}</td>
           <td class="mono">${esc(formatTimeUtc7(event.time || event.time_local))}</td>
           <td>${esc(event.camera || "-")}</td>
           <td><span class="badge ${badgeClass(event.status)}">${esc(event.status || "-")}</span></td>
@@ -290,11 +748,26 @@
       const data = await api(`/api/recordings?${params}`);
       state.recordingsTotal = data.total || 0;
       const items = data.recordings || [];
-      $("recordingsGrid").innerHTML = items.length ? items.map(item => `
+      $("recordingsGrid").innerHTML = items.length ? items.map((item, idx) => {
+        const timeStr = formatTimeUtc7(item.time || item.time_local);
+        const name = esc(item.camera || "Camera");
+        return `
         <article class="recording-card">
-          <video controls preload="metadata" src="${esc(item.video_url || "")}"></video>
-          <footer><div><b>${esc(item.camera || "Camera")}</b><p class="muted">${esc(formatTimeUtc7(item.time || item.time_local))}</p></div><a class="btn small" href="${esc(item.video_url || "#")}" target="_blank" rel="noopener">Open</a></footer>
-        </article>`).join("") : '<div class="empty">No recordings found for this filter.</div>';
+          <div class="recording-thumb-wrapper play-recording" data-url="${esc(item.video_url || "")}" data-title="${name} - ${esc(timeStr)}">
+            <div class="play-button-overlay">
+              <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            </div>
+            <img src="/favicon.ico" style="object-fit: scale-down; padding: 20px; opacity: 0.25;" alt="recording">
+          </div>
+          <footer>
+            <div>
+              <b>${name}</b>
+              <p class="muted">${esc(timeStr)}</p>
+            </div>
+            <a class="btn small" href="${esc(item.video_url || "#")}" target="_blank" rel="noopener">Open</a>
+          </footer>
+        </article>`;
+      }).join("") : '<div class="empty">No recordings found for this filter.</div>';
       const totalPages = Math.max(1, Math.ceil(state.recordingsTotal / limit));
       setText("recordingsPageInfo", `Page ${state.recordingsPage} of ${totalPages} - ${state.recordingsTotal} recordings`);
       $("prevRecordingPageBtn").disabled = state.recordingsPage <= 1;
@@ -313,6 +786,53 @@
     }
     async function monitorAction(url) { const data = await api(url, { method:"POST", timeout:20000 }); showToast(data.message || "Done", "ok"); await loadStatus(); }
     async function refreshAll() { await Promise.all([loadStatus(), loadEvents(), loadRecordings()]); }
+    
+    function showViewer(title, url, mode = "image") {
+      state.viewerUrl = url;
+      state.viewerMode = mode;
+      setText("viewerTitle", title);
+      const body = $("viewerBody");
+      body.innerHTML = "";
+      if (mode === "iframe") {
+        const frame = document.createElement("iframe");
+        frame.src = url;
+        frame.title = title;
+        frame.allow = "autoplay; fullscreen; picture-in-picture";
+        body.appendChild(frame);
+      } else if (mode === "video") {
+        const video = document.createElement("video");
+        video.src = url;
+        video.controls = true;
+        video.autoplay = true;
+        video.style.width = "100%";
+        body.appendChild(video);
+      } else {
+        const img = document.createElement("img");
+        img.src = url;
+        img.alt = title;
+        body.appendChild(img);
+      }
+      $("viewerDialog").showModal();
+    }
+
+    document.addEventListener("click", event => {
+      const playBtn = event.target.closest(".play-recording");
+      if (playBtn) {
+        showViewer(playBtn.dataset.title, playBtn.dataset.url, "video");
+      }
+      const eventImg = event.target.closest(".view-event-image");
+      if (eventImg) {
+        showViewer(eventImg.dataset.title, eventImg.dataset.url, "image");
+      }
+      const closer = event.target.closest("[data-close-dialog]");
+      if (closer) {
+        $(closer.dataset.closeDialog).close();
+      }
+    });
+
+    $("openViewerBtn").onclick = () => { if (state.viewerUrl) window.open(state.viewerUrl, "_blank"); };
+    $("viewerDialog").addEventListener("close", () => { $("viewerBody").innerHTML = ""; });
+
     $("startBtn").onclick = () => monitorAction("/api/start").catch(err => showToast(err.message, "err"));
     $("stopBtn").onclick = () => monitorAction("/api/stop").catch(err => showToast(err.message, "err"));
     $("refreshAllBtn").onclick = () => refreshAll().catch(err => showToast(err.message, "err"));
