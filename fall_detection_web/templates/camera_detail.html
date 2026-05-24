@@ -329,6 +329,8 @@
 
     /* Recordings */
     .recordings-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .recordings-grid.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .recordings-grid.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .recordings-grid.list-view { grid-template-columns: 1fr; }
     .recordings-grid.list-view .recording-card {
       flex-direction: row;
@@ -564,9 +566,13 @@
               <input id="recordingDateFrom" type="date" title="From date">
               <input id="recordingDateTo" type="date" title="To date">
               <select id="recordingLayoutSelect" aria-label="Layout select"><option value="grid">Grid View</option><option value="list">List View</option></select>
+              <select id="recordingGridCols" aria-label="Grid columns select"><option value="2">2 Columns</option><option value="3">3 Columns</option></select>
               <select id="recordingPageSize" aria-label="Page size select"><option>6</option><option>12</option><option>24</option></select>
               <label class="check-row" style="min-height: 40px; display: inline-flex; align-items: center; margin-bottom: 0; padding: 0 12px; gap: 6px; border: 1px solid var(--line); border-radius: var(--radius); background: rgba(2, 6, 23, .28); color: var(--muted); font-size: 12px; font-weight: 700; cursor: pointer;">
                 <input id="recordingShowThumb" type="checkbox" checked style="width: 16px; min-height: 16px; margin: 0; accent-color: var(--good); cursor: pointer;"> Show Thumbs
+              </label>
+              <label class="check-row" style="min-height: 40px; display: inline-flex; align-items: center; margin-bottom: 0; padding: 0 12px; gap: 6px; border: 1px solid var(--line); border-radius: var(--radius); background: rgba(2, 6, 23, .28); color: var(--muted); font-size: 12px; font-weight: 700; cursor: pointer;">
+                <input id="recordingMaskCover" type="checkbox" checked style="width: 16px; min-height: 16px; margin: 0; accent-color: var(--good); cursor: pointer;"> Play Cover
               </label>
               <button id="refreshRecordingsBtn" class="btn" type="button"><span data-icon="refresh"></span>Refresh</button>
               <button id="clearRecordingsBtn" class="btn danger" type="button"><span data-icon="trash"></span>Clear recordings</button>
@@ -775,30 +781,46 @@
       
       const showThumbs = $("recordingShowThumb").checked;
       const layoutMode = $("recordingLayoutSelect").value;
+      const gridCols = $("recordingGridCols").value;
+      const maskCover = $("recordingMaskCover").checked;
+      
       const grid = $("recordingsGrid");
-      grid.className = `recordings-grid ${layoutMode === "list" ? "list-view" : ""} ${!showThumbs ? "no-thumbnails" : ""}`;
+      grid.className = `recordings-grid ${layoutMode === "list" ? "list-view" : `cols-${gridCols}`} ${!showThumbs ? "no-thumbnails" : ""}`;
 
       grid.innerHTML = items.length ? items.map((item, idx) => {
         const timeStr = formatTimeUtc7(item.time || item.time_local);
         const name = esc(item.camera || "Camera");
         const thumbUrl = item.image_url || "";
         
-        let imgHtml = "";
-        if (thumbUrl) {
-          imgHtml = `<img src="${esc(thumbUrl)}" loading="lazy" alt="recording thumbnail">`;
+        let mediaHtml = "";
+        if (maskCover) {
+          let imgHtml = "";
+          if (thumbUrl) {
+            imgHtml = `<img src="${esc(thumbUrl)}" loading="lazy" alt="recording thumbnail">`;
+          } else {
+            // Play icon centered on dark background
+            imgHtml = `<svg viewBox="0 0 24 24" style="width: 32px; height: 32px; color: var(--faint); opacity: 0.5;"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="M17 9l4-2v10l-4-2z"/></svg>`;
+          }
+          mediaHtml = `
+            <div class="recording-thumb-wrapper play-recording" data-url="${esc(item.video_url || "")}" data-title="${name} - ${esc(timeStr)}">
+              <div class="play-button-overlay">
+                <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+              </div>
+              ${imgHtml}
+            </div>
+          `;
         } else {
-          // Play icon centered on dark background
-          imgHtml = `<svg viewBox="0 0 24 24" style="width: 32px; height: 32px; color: var(--faint); opacity: 0.5;"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="M17 9l4-2v10l-4-2z"/></svg>`;
+          // Render video tag directly inline!
+          mediaHtml = `
+            <div class="recording-thumb-wrapper" style="cursor: default;">
+              <video controls preload="metadata" src="${esc(item.video_url || "")}" style="width: 100%; height: 100%; object-fit: contain; background: #000; display: block;"></video>
+            </div>
+          `;
         }
 
         return `
         <article class="recording-card">
-          <div class="recording-thumb-wrapper play-recording" data-url="${esc(item.video_url || "")}" data-title="${name} - ${esc(timeStr)}">
-            <div class="play-button-overlay">
-              <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-            </div>
-            ${imgHtml}
-          </div>
+          ${mediaHtml}
           <footer>
             <div>
               <b>${name}</b>
@@ -892,7 +914,13 @@
       showToast(data.message || "Events cleared", "ok"); state.eventsPage = 1; await loadEvents();
     };
     $("refreshRecordingsBtn").onclick = () => { state.recordingsPage = 1; loadRecordings().catch(err => showToast(err.message, "err")); };
-    $("recordingDateFrom").onchange = $("recordingDateTo").onchange = $("recordingPageSize").onchange = $("recordingLayoutSelect").onchange = $("recordingShowThumb").onchange = () => { state.recordingsPage = 1; loadRecordings(); };
+    $("recordingDateFrom").onchange = $("recordingDateTo").onchange = $("recordingPageSize").onchange = $("recordingGridCols").onchange = $("recordingMaskCover").onchange = $("recordingShowThumb").onchange = () => { state.recordingsPage = 1; loadRecordings(); };
+    $("recordingLayoutSelect").onchange = () => {
+      const isGrid = $("recordingLayoutSelect").value === "grid";
+      $("recordingGridCols").classList.toggle("hidden", !isGrid);
+      state.recordingsPage = 1;
+      loadRecordings();
+    };
     $("prevRecordingPageBtn").onclick = () => { if (state.recordingsPage > 1) { state.recordingsPage--; loadRecordings(); } };
     $("nextRecordingPageBtn").onclick = () => { state.recordingsPage++; loadRecordings(); };
     $("clearRecordingsBtn").onclick = async () => {
