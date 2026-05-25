@@ -33,21 +33,33 @@ Camera / RTSP / go2rtc
 
 ### 1. Trên Linux / Ubuntu VPS
 
-Mở Terminal và chạy các lệnh sau:
+Mở Terminal và chạy các lệnh sau để tạo thư mục, tải mã nguồn, cài đặt Python và các thư viện cần thiết:
 
 ```bash
-# 1. Clone mã nguồn về máy
-git clone <url-kho-chua-cua-ban>
-cd fall_detection_web
+# 1. Tạo thư mục chứa dự án trong thư mục /opt
+sudo mkdir -p /opt
+cd /opt
 
-# 2. Tạo môi trường ảo Python
+# 2. Clone mã nguồn từ GitHub bằng SSH Key
+sudo git clone git@github.com:minhhungtsbd/my_hass_addon_public.git
+cd my_hass_addon_public/fall_detection_web
+
+# Cấp quyền sở hữu thư mục cho user hiện tại (ví dụ: root, ubuntu,...) để chạy không cần sudo
+sudo chown -R $USER:$USER /opt/my_hass_addon_public
+
+# 3. Cài đặt Python3, pip và venv (nếu chưa có)
+sudo apt update
+sudo apt install -y python3 python3-pip python3-venv
+
+# 4. Tạo môi trường ảo Python và kích hoạt
 python3 -m venv venv
 source venv/bin/activate
 
-# 3. Cài đặt các thư viện phụ thuộc
+# 5. Cài đặt các thư viện phụ thuộc
+pip install --upgrade pip
 pip install -r requirements.txt
 
-# 4. Chạy ứng dụng web
+# 6. Chạy thử nghiệm ứng dụng web
 uvicorn app:app --host 0.0.0.0 --port 8090
 ```
 
@@ -226,7 +238,7 @@ Truy cập menu **Cameras** > **Add Camera** hoặc chỉnh sửa camera hiện 
    ```bash
    sudo nano /etc/systemd/system/fall-detection.service
    ```
-2. Dán nội dung sau vào file (thay đổi `/opt/fall-detection` thành thư mục chứa code thực tế của bạn):
+2. Dán nội dung cấu hình sau vào file:
    ```ini
    [Unit]
    Description=Fall Detection Web Service
@@ -234,8 +246,8 @@ Truy cập menu **Cameras** > **Add Camera** hoặc chỉnh sửa camera hiện 
 
    [Service]
    User=root
-   WorkingDirectory=/opt/fall-detection
-   ExecStart=/opt/fall-detection/venv/bin/uvicorn app:app --host 0.0.0.0 --port 8090 --no-access-log
+   WorkingDirectory=/opt/my_hass_addon_public/fall_detection_web
+   ExecStart=/opt/my_hass_addon_public/fall_detection_web/venv/bin/uvicorn app:app --host 0.0.0.0 --port 8090 --no-access-log
    Restart=always
    RestartSec=5
 
