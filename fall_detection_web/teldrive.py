@@ -207,3 +207,20 @@ def download_file(config: dict[str, Any], file_id: str, file_name: str, range_he
     )
     response.raise_for_status()
     return response
+
+
+def prewarm_file(config: dict[str, Any], file_id: str, file_name: str) -> None:
+    """Pre-warm the file on Teldrive/Telegram in the background to avoid watchdog timeouts."""
+    if not enabled(config):
+        return
+    try:
+        logger.info("[TELDRIVE] Start pre-warming file_id=%s file_name=%s", file_id, file_name)
+        # Request the first 512KB to wake up Telegram & Teldrive's stream cache
+        response = download_file(config, file_id, file_name, range_header="bytes=0-524288")
+        # Consume the content to force the download
+        _ = response.content
+        response.close()
+        logger.info("[TELDRIVE] Successfully pre-warmed file file_id=%s file_name=%s", file_id, file_name)
+    except Exception as exc:
+        logger.warning("[TELDRIVE] Pre-warm failed for file_id=%s: %s", file_id, exc)
+

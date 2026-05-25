@@ -962,7 +962,7 @@
     async function monitorAction(url) { const data = await api(url, { method:"POST", timeout:20000 }); showToast(data.message || "Done", "ok"); await loadStatus(); }
     async function refreshAll() { await Promise.all([loadStatus(), loadEvents(), loadRecordings()]); }
     
-    function showViewer(title, url, mode = "image") {
+    async function showViewer(title, url, mode = "image") {
       state.viewerUrl = url;
       state.viewerMode = mode;
       setText("viewerTitle", title);
@@ -974,7 +974,30 @@
         frame.title = title;
         frame.allow = "autoplay; fullscreen; picture-in-picture";
         body.appendChild(frame);
+        $("viewerDialog").showModal();
       } else if (mode === "video") {
+        // Show loading spinner/message first
+        body.innerHTML = `
+          <div id="videoLoader" style="min-height: 180px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; width: 100%; text-align: center;">
+            <span class="loading-spinner" style="width: 32px; height: 32px; color: var(--good);">${icons.refresh}</span>
+            <div style="font-weight: 700; color: var(--text); font-size: 15px;">Đang chuẩn bị video từ Telegram...</div>
+            <div class="muted small" style="max-width: 340px; margin: 0 auto; line-height: 1.45; font-size: 12px;">Quá trình tải ban đầu có thể mất vài giây nếu tệp tin chưa được lưu bộ nhớ đệm.</div>
+          </div>`;
+        $("viewerDialog").showModal();
+
+        try {
+          // Send a pre-warm probe request to the backend with Range header.
+          await fetch(url, { headers: { "Range": "bytes=0-1023" } });
+        } catch (err) {
+          console.warn("Pre-warm probe failed:", err);
+        }
+
+        // Check if the user is still viewing the same video (avoid race condition if closed)
+        if (state.viewerUrl !== url) return;
+
+        const loader = $("videoLoader");
+        if (loader) loader.remove();
+
         const video = document.createElement("video");
         video.src = url;
         video.controls = true;
@@ -986,8 +1009,8 @@
         img.src = url;
         img.alt = title;
         body.appendChild(img);
+        $("viewerDialog").showModal();
       }
-      $("viewerDialog").showModal();
     }
 
     function updateToggleBtn() {
