@@ -283,6 +283,10 @@ def cleanup_uploaded_local_clips(config: dict[str, Any]) -> int:
             if not teldrive.enabled(config):
                 logger.info("[RECORD] keeping local clip without Teldrive config file=%s", path.name)
                 continue
+            # Skip retry if the file is less than 1 hour (3600 seconds) old to avoid race conditions with active uploads
+            if time.time() - path.stat().st_mtime < 3600:
+                logger.info("[RECORD] skipping retry for brand new clip file=%s", path.name)
+                continue
             logger.info("[RECORD] retrying Teldrive upload for local clip file=%s", path.name)
             uploaded = upload_event_video_safe(
                 config,

@@ -76,6 +76,7 @@ app = FastAPI(title="Fall Detection Web", lifespan=lifespan)
 
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 db.EVENT_IMAGES_DIR.mkdir(parents=True, exist_ok=True)
+(DATA_DIR / "teldrive_cache").mkdir(parents=True, exist_ok=True)
 
 @app.get("/favicon.ico")
 async def favicon():
@@ -191,9 +192,57 @@ def teldrive_file(request: Request, file_id: str, file_name: str, _: str = Depen
     try:
         c = config.read_config()
         range_header = request.headers.get("range", "")
+        guessed_media_type = teldrive._mime_type(file_name)
+        is_image = guessed_media_type.startswith("image/") or Path(file_name).suffix.lower() in {".jpg", ".jpeg", ".png", ".webp"}
+
+        if is_image:
+            cache_dir = DATA_DIR / "teldrive_cache"
+            cache_dir.mkdir(parents=True, exist_ok=True)
+            cache_path = cache_dir / file_id
+            
+            if cache_path.exists():
+                stat = cache_path.stat()
+                etag = f'W/"{stat.st_mtime_ns:x}-{stat.st_size:x}"'
+                last_modified = formatdate(stat.st_mtime, usegmt=True)
+                headers = {
+                    "Cache-Control": "private, max-age=86400, immutable",
+                    "ETag": etag,
+                    "Last-Modified": last_modified,
+                }
+                if request.headers.get("if-none-match") == etag:
+                    return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers=headers)
+                return FileResponse(
+                    cache_path,
+                    media_type=guessed_media_type,
+                    headers=headers,
+                )
+            
+            try:
+                response = teldrive.download_file(c, file_id, file_name, range_header)
+                content = response.content
+                response.close()
+                cache_path.write_bytes(content)
+                stat = cache_path.stat()
+                etag = f'W/"{stat.st_mtime_ns:x}-{stat.st_size:x}"'
+                last_modified = formatdate(stat.st_mtime, usegmt=True)
+                headers = {
+                    "Cache-Control": "private, max-age=86400, immutable",
+                    "ETag": etag,
+                    "Last-Modified": last_modified,
+                }
+                return FileResponse(
+                    cache_path,
+                    media_type=guessed_media_type,
+                    headers=headers,
+                )
+            except requests.HTTPError as exc:
+                if exc.response is not None and exc.response.status_code in (401, 403):
+                    return RedirectResponse(url=teldrive.file_url(c, file_id, file_name), status_code=status.HTTP_302_FOUND)
+                raise
+
+        # Non-image files (videos) stream as usual without caching
         response = teldrive.download_file(c, file_id, file_name, range_header)
         upstream_media_type = response.headers.get("content-type", "application/octet-stream")
-        guessed_media_type = teldrive._mime_type(file_name)
         media_type = upstream_media_type
         if media_type == "application/octet-stream" or (
             guessed_media_type.startswith("video/") and not media_type.startswith("video/")

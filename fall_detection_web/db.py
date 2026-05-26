@@ -461,6 +461,21 @@ def delete_old_events(days: int = 7) -> int:
                 except OSError:
                     pass
         deleted = conn.execute("DELETE FROM events WHERE time < ?", (cutoff,)).rowcount
+    
+    # Clean up old cached teldrive files (images) to save space
+    try:
+        cache_dir = DATA_DIR / "teldrive_cache"
+        if cache_dir.exists():
+            cutoff_epoch = time.time() - (days * 86400)
+            for path in cache_dir.iterdir():
+                if path.is_file() and path.stat().st_mtime < cutoff_epoch:
+                    try:
+                        path.unlink()
+                    except OSError:
+                        pass
+    except Exception as e:
+        logger.warning(f"[DB] Lỗi khi dọn dẹp teldrive_cache: {e}")
+
     if deleted > 0:
         logger.info("[DB] Deleted %d events older than %d days", deleted, days)
     return deleted
