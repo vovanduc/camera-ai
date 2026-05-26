@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import mimetypes
 import uuid
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote
@@ -73,6 +74,14 @@ def remote_folder(config: dict[str, Any], camera_name: str, kind: str) -> str:
     root = str(config.get("teldrive_root_path", "/Fall Detection")).strip() or "/Fall Detection"
     root = "/" + root.strip("/")
     return f"{root}/{_clean_segment(camera_name)}/{kind}"
+
+
+def _date_folder_from_name(file_name: str) -> str:
+    stamp = Path(file_name).stem[:15]
+    try:
+        return datetime.strptime(stamp, "%Y%m%dT%H%M%S").strftime("%Y-%m-%d")
+    except ValueError:
+        return datetime.now().strftime("%Y-%m-%d")
 
 
 def _folder_path(folder: str) -> str:
@@ -186,7 +195,8 @@ def upload_event_image(config: dict[str, Any], local_path: Path, camera_name: st
 
 
 def upload_event_video(config: dict[str, Any], local_path: Path, camera_name: str) -> dict[str, Any]:
-    return upload_file(config, local_path, remote_folder(config, camera_name, "videos"))
+    folder = f"{remote_folder(config, camera_name, 'videos')}/{_date_folder_from_name(local_path.name)}"
+    return upload_file(config, local_path, folder)
 
 
 def file_url(config: dict[str, Any], file_id: str, file_name: str) -> str:

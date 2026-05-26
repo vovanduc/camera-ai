@@ -230,8 +230,8 @@ def _prune_events(conn: sqlite3.Connection) -> None:
 
 def insert_event(status_name: str, image_path: Path | None = None, save_image: bool = True, **fields: Any) -> dict[str, Any]:
     image_file = save_event_image(image_path, status_name) if save_image else ""
-    t = now_iso()
-    t_local = local_iso()
+    t = str(fields.get("event_time") or now_iso())
+    t_local = str(fields.get("event_time_local") or local_iso())
     with get_conn() as conn:
         cur = conn.execute(
             "INSERT INTO events (time,time_local,status,camera,confidence,ai_result,ai_raw,ai_response,message,error,image_file,teldrive_image_id,teldrive_image_name,teldrive_image_path,teldrive_video_id,teldrive_video_name,teldrive_video_path) "
@@ -294,7 +294,7 @@ def get_events(
     if conditions:
         query += " WHERE " + " AND ".join(conditions)
         
-    query += " ORDER BY id DESC LIMIT ? OFFSET ?"
+    query += " ORDER BY time DESC, id DESC LIMIT ? OFFSET ?"
     params.extend([limit, offset])
 
     with get_conn() as conn:
@@ -330,7 +330,7 @@ def get_recordings(
     if date_to:
         query += " AND time <= ?"
         params.append(date_to)
-    query += " ORDER BY id DESC LIMIT ? OFFSET ?"
+    query += " ORDER BY time DESC, id DESC LIMIT ? OFFSET ?"
     params.extend([limit, offset])
     with get_conn() as conn:
         rows = conn.execute(query, params).fetchall()

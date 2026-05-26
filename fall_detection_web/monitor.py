@@ -6,6 +6,7 @@ import logging
 import os
 import threading
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, parse_qsl, urlencode, urlparse, urlunparse
@@ -114,7 +115,13 @@ def upload_event_image_safe(config: dict[str, Any], image_path: Path, camera_nam
         insert_event("teldrive_image_error", camera=camera_name, error=str(exc))
 
 
-def upload_event_video_safe(config: dict[str, Any], video_path: Path, camera_name: str) -> bool:
+def upload_event_video_safe(
+    config: dict[str, Any],
+    video_path: Path,
+    camera_name: str,
+    event_time: str = "",
+    event_time_local: str = "",
+) -> bool:
     try:
         file_data = teldrive.upload_event_video(config, video_path, camera_name)
         video_id = str(file_data.get("id", ""))
@@ -128,6 +135,8 @@ def upload_event_video_safe(config: dict[str, Any], video_path: Path, camera_nam
             teldrive_video_id=video_id,
             teldrive_video_name=video_name,
             teldrive_video_path=str(file_data.get("path", "")),
+            event_time=event_time,
+            event_time_local=event_time_local,
         )
         return True
     except Exception as exc:
@@ -149,31 +158,67 @@ def cleanup_recording_if_needed(camera: dict[str, Any], video_path: Path, upload
         logger.warning("[RECORD] could not remove local clip file=%s error=%s", video_path.name, exc)
 
 
+def clip_metadata_from_name(path: Path) -> dict[str, str]:
+    stem = path.stem
+    if len(stem) < 17 or stem[8:9] != "T" or stem[15:16] != "_":
+        return {}
+    try:
+        dt = datetime.strptime(stem[:15], "%Y%m%dT%H%M%S").replace(tzinfo=timezone.utc)
+    except ValueError:
+        return {}
+    return {
+        "camera_key": stem[16:],
+        "event_time": dt.isoformat(timespec="seconds"),
+        "event_time_local": dt.astimezone(db.LOCAL_TZ).isoformat(timespec="seconds"),
+    }
+
+
 def cleanup_uploaded_local_clips(config: dict[str, Any]) -> int:
     if not CLIPS_DIR.exists():
         return 0
-    keep_local_by_camera = {
-        str(camera.get("name", "")).strip(): camera.get("local_save_videos") is not False
-        for camera in normalize_cameras(config)
+    cameras = normalize_cameras(config)
+    camera_by_safe_name = {safe_camera_name(str(camera.get("name", ""))): camera for camera in cameras}
+    keep_local_by_camera = {str(camera.get("name", "")).strip(): camera.get("local_save_videos") is not False for camera in cameras}
+    uploaded_names = {
+        Path(file_name).name
+        for record in db.get_uploaded_video_records()
+        for file_name in (record.get("message", ""), record.get("teldrive_video_name", ""))
+        if Path(file_name).name
     }
     deleted = 0
-    for record in db.get_uploaded_video_records():
-        camera_name = record.get("camera", "")
+    for path in sorted(CLIPS_DIR.iterdir()):
+        if not path.is_file() or path.suffix.lower() not in {".mp4", ".avi"}:
+            continue
+        meta = clip_metadata_from_name(path)
+        camera = camera_by_safe_name.get(meta.get("camera_key", ""))
+        if not camera:
+            logger.info("[RECORD] keeping unmatched local clip file=%s", path.name)
+            continue
+        camera_name = str(camera.get("name", "")).strip()
+        if path.name not in uploaded_names:
+            if not teldrive.enabled(config):
+                logger.info("[RECORD] keeping local clip without Teldrive config file=%s", path.name)
+                continue
+            logger.info("[RECORD] retrying Teldrive upload for local clip file=%s", path.name)
+            uploaded = upload_event_video_safe(
+                config,
+                path,
+                camera_name,
+                event_time=meta.get("event_time", ""),
+                event_time_local=meta.get("event_time_local", ""),
+            )
+            if uploaded:
+                uploaded_names.add(path.name)
+            else:
+                continue
         if keep_local_by_camera.get(camera_name, True):
             continue
-        for file_name in {record.get("message", ""), record.get("teldrive_video_name", "")}:
-            safe_name = Path(file_name).name
-            if not safe_name:
-                continue
-            path = CLIPS_DIR / safe_name
-            if not path.exists() or not path.is_file():
-                continue
-            try:
-                path.unlink()
-                deleted += 1
-                logger.info("[RECORD] removed uploaded local clip file=%s", safe_name)
-            except OSError as exc:
-                logger.warning("[RECORD] could not remove uploaded local clip file=%s error=%s", safe_name, exc)
+        try:
+            path.unlink()
+            deleted += 1
+            logger.info("[RECORD] removed uploaded local clip file=%s", path.name)
+        except OSError as exc:
+            logger.warning("[RECORD] could not remove uploaded local clip file=%s error=%s", path.name, exc)
     return deleted
 
 
