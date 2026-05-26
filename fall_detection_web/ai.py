@@ -200,6 +200,8 @@ def _call_vision_api(model_name: str, prompt_text: str, image_path: Path, config
         response.raise_for_status()
     except requests.exceptions.HTTPError as exc:
         err_msg = response.text.strip()
+        if err_msg.startswith("<") or "html" in response.headers.get("content-type", "").lower():
+            err_msg = f"HTML Response ({response.status_code} {response.reason})"
         logger.error("[AI] HTTP Error %s (Model: %s): %s", response.status_code, model_name, err_msg)
         raise RuntimeError(f"{response.status_code} Error: {short_text(err_msg, 100)}") from exc
     
