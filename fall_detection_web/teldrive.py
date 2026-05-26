@@ -197,11 +197,20 @@ def download_file(config: dict[str, Any], file_id: str, file_name: str, range_he
     headers = {}
     if range_header:
         headers["Range"] = range_header
-    if str(config.get("teldrive_token", "")).strip():
-        headers = {**_headers(config), **headers}
     response = _session.get(
         file_url(config, file_id, file_name),
         headers=headers,
+        stream=True,
+        timeout=60,
+    )
+    if response.status_code not in (401, 403) or not str(config.get("teldrive_token", "")).strip():
+        response.raise_for_status()
+        return response
+
+    response.close()
+    response = _session.get(
+        file_url(config, file_id, file_name),
+        headers={**_headers(config), **headers},
         stream=True,
         timeout=60,
     )
@@ -223,4 +232,3 @@ def prewarm_file(config: dict[str, Any], file_id: str, file_name: str) -> None:
         logger.info("[TELDRIVE] Successfully pre-warmed file file_id=%s file_name=%s", file_id, file_name)
     except Exception as exc:
         logger.warning("[TELDRIVE] Pre-warm failed for file_id=%s: %s", file_id, exc)
-
