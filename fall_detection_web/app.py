@@ -370,28 +370,6 @@ def check_teldrive_token(payload: dict[str, Any] = Body(default={}), _: str = De
         raise HTTPException(status_code=400, detail=str(exc))
 
 
-@app.post("/api/video-debug")
-def video_debug(payload: dict[str, Any] = Body(default={}), _: str = Depends(auth.require_auth)):
-    event = str(payload.get("event", ""))[:60]
-    title = str(payload.get("title", ""))[:120]
-    url = str(payload.get("url", ""))[:500]
-    error = payload.get("error") if isinstance(payload.get("error"), dict) else {}
-    logger.info(
-        "[VIDEO] event=%s title=%r ready=%s network=%s paused=%s current_time=%s duration=%s error_code=%s error_message=%r url=%s",
-        event,
-        title,
-        payload.get("readyState"),
-        payload.get("networkState"),
-        payload.get("paused"),
-        payload.get("currentTime"),
-        payload.get("duration"),
-        error.get("code"),
-        str(error.get("message", ""))[:200],
-        url,
-    )
-    return {"success": True}
-
-
 @app.get("/api/status")
 def get_status(_: str = Depends(auth.require_auth)):
     disk = psutil.disk_usage('/')

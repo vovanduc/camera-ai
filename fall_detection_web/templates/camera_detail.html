@@ -947,7 +947,6 @@
       setText("recordingsPageInfo", `Page ${state.recordingsPage} of ${totalPages} - ${state.recordingsTotal} recordings`);
       $("prevRecordingPageBtn").disabled = state.recordingsPage <= 1;
       $("nextRecordingPageBtn").disabled = state.recordingsPage >= totalPages;
-      grid.querySelectorAll(".lazy-recording-video").forEach(video => attachVideoDebug(video, video.dataset.title || "inline recording"));
     }
     function askConfirm(title, message, scope) {
       return new Promise(resolve => {
@@ -962,38 +961,6 @@
     }
     async function monitorAction(url) { const data = await api(url, { method:"POST", timeout:20000 }); showToast(data.message || "Done", "ok"); await loadStatus(); }
     async function refreshAll() { await Promise.all([loadStatus(), loadEvents(), loadRecordings()]); }
-    function videoDebugPayload(video, eventName, title, url) {
-      const err = video && video.error ? { code: video.error.code, message: video.error.message || "" } : null;
-      return {
-        event: eventName,
-        title: title || "",
-        url: url || (video ? video.currentSrc || video.src || video.dataset.src || "" : ""),
-        readyState: video ? video.readyState : null,
-        networkState: video ? video.networkState : null,
-        paused: video ? video.paused : null,
-        currentTime: video ? Number(video.currentTime || 0).toFixed(2) : null,
-        duration: video && Number.isFinite(video.duration) ? Number(video.duration).toFixed(2) : String(video && video.duration),
-        error: err,
-      };
-    }
-    function logVideoDebug(video, eventName, title, url) {
-      const payload = videoDebugPayload(video, eventName, title, url);
-      fetch("/api/video-debug", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        keepalive: true,
-      }).catch(() => {});
-    }
-    function attachVideoDebug(video, title) {
-      if (!video || video.dataset.debugAttached === "1") return;
-      video.dataset.debugAttached = "1";
-      ["loadstart", "loadedmetadata", "loadeddata", "canplay", "play", "playing", "waiting", "stalled", "suspend", "error", "abort", "emptied"].forEach(eventName => {
-        video.addEventListener(eventName, () => {
-          logVideoDebug(video, eventName, title || video.dataset.title || "recording");
-        });
-      });
-    }
     
     async function showViewer(title, url, mode = "image") {
       state.viewerUrl = url;
@@ -1018,8 +985,6 @@
           </div>`;
         $("viewerDialog").showModal();
 
-        logVideoDebug(null, "viewer_open", title, url);
-
         // Check if the user is still viewing the same video (avoid race condition if closed)
         if (state.viewerUrl !== url) return;
 
@@ -1032,7 +997,6 @@
         video.autoplay = true;
         video.preload = "metadata";
         video.style.width = "100%";
-        attachVideoDebug(video, title);
         video.addEventListener("error", () => {
           showToast("Video không phát được trong trình duyệt. Có thể file cũ đang dùng HEVC/H.265.", "err");
         }, { once: true });
@@ -1211,12 +1175,10 @@
     document.addEventListener("click", event => {
       const playBtn = event.target.closest(".play-recording");
       if (playBtn) {
-        logVideoDebug(null, "play_button_click", playBtn.dataset.title, playBtn.dataset.url);
         showViewer(playBtn.dataset.title, playBtn.dataset.url, "video");
       }
       const lazyVideo = event.target.closest(".lazy-recording-video");
       if (lazyVideo && !lazyVideo.getAttribute("src")) {
-        logVideoDebug(lazyVideo, "inline_video_click", lazyVideo.dataset.title, lazyVideo.dataset.src);
         lazyVideo.src = lazyVideo.dataset.src || "";
         lazyVideo.load();
         lazyVideo.play().catch(() => {});
