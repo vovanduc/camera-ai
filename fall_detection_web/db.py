@@ -274,6 +274,15 @@ def update_event_teldrive_image(event_id: int, file_data: dict[str, Any]) -> Non
         )
 
 
+def update_event_image(event_id: int, image_path: Path, status_name: str = "recording_thumb") -> str:
+    image_file = save_event_image(image_path, status_name)
+    if not image_file:
+        return ""
+    with get_conn() as conn:
+        conn.execute("UPDATE events SET image_file=? WHERE id=?", (image_file, event_id))
+    return image_file
+
+
 def get_events(
     limit: int = 100, 
     offset: int = 0, 
@@ -367,13 +376,15 @@ def get_recordings_total(camera: str | None = None, date_from: str | None = None
 def get_uploaded_video_records() -> list[dict[str, str]]:
     with get_conn() as conn:
         rows = conn.execute(
-            "SELECT camera, message, teldrive_video_name FROM events "
+            "SELECT id, camera, message, image_file, teldrive_video_name FROM events "
             "WHERE teldrive_video_id IS NOT NULL AND teldrive_video_id != ''"
         ).fetchall()
     return [
         {
+            "id": str(row["id"] or ""),
             "camera": str(row["camera"] or ""),
             "message": str(row["message"] or ""),
+            "image_file": str(row["image_file"] or ""),
             "teldrive_video_name": str(row["teldrive_video_name"] or ""),
         }
         for row in rows

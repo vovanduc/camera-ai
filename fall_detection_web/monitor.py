@@ -119,6 +119,7 @@ def upload_event_video_safe(
     config: dict[str, Any],
     video_path: Path,
     camera_name: str,
+    thumbnail_path: Path | None = None,
     event_time: str = "",
     event_time_local: str = "",
 ) -> bool:
@@ -128,8 +129,11 @@ def upload_event_video_safe(
         video_name = str(file_data.get("name", ""))
         if not video_id or not video_name:
             raise RuntimeError("Teldrive upload did not return file id/name")
+        save_thumbnail = thumbnail_path is not None and thumbnail_path.exists()
         insert_event(
             "teldrive_video_uploaded",
+            image_path=thumbnail_path if save_thumbnail else None,
+            save_image=save_thumbnail,
             camera=camera_name,
             message=video_path.name,
             teldrive_video_id=video_id,
@@ -146,6 +150,8 @@ def upload_event_video_safe(
 
 
 def cleanup_recording_if_needed(camera: dict[str, Any], video_path: Path, uploaded: bool) -> None:
+    if uploaded:
+        cleanup_temp_thumbnail(video_path)
     if camera.get("local_save_videos") is not False:
         return
     if not uploaded:
@@ -173,18 +179,63 @@ def clip_metadata_from_name(path: Path) -> dict[str, str]:
     }
 
 
+def video_thumbnail_path(video_path: Path) -> Path:
+    return video_path.with_name(f"{video_path.stem}_thumb.jpg")
+
+
+def cleanup_temp_thumbnail(video_path: Path) -> None:
+    thumb_path = video_thumbnail_path(video_path)
+    try:
+        if thumb_path.exists():
+            thumb_path.unlink()
+    except OSError as exc:
+        logger.warning("[RECORD] could not remove thumbnail file=%s error=%s", thumb_path.name, exc)
+
+
+def save_frame_thumbnail(frame: Any, output_path: Path) -> Path | None:
+    try:
+        import cv2
+        if frame is None:
+            return None
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        cv2.imwrite(str(output_path), frame, [cv2.IMWRITE_JPEG_QUALITY, 78])
+        return output_path if output_path.exists() else None
+    except Exception as exc:
+        logger.warning("[RECORD] thumbnail write failed file=%s error=%s", output_path.name, exc)
+        return None
+
+
+def extract_video_thumbnail(video_path: Path) -> Path | None:
+    try:
+        import cv2
+        thumb_path = video_thumbnail_path(video_path)
+        cap = cv2.VideoCapture(str(video_path))
+        try:
+            ok, frame = cap.read()
+        finally:
+            cap.release()
+        if not ok or frame is None:
+            return None
+        return save_frame_thumbnail(frame, thumb_path)
+    except Exception as exc:
+        logger.warning("[RECORD] thumbnail extract failed file=%s error=%s", video_path.name, exc)
+        return None
+
+
 def cleanup_uploaded_local_clips(config: dict[str, Any]) -> int:
     if not CLIPS_DIR.exists():
         return 0
     cameras = normalize_cameras(config)
     camera_by_safe_name = {safe_camera_name(str(camera.get("name", ""))): camera for camera in cameras}
     keep_local_by_camera = {str(camera.get("name", "")).strip(): camera.get("local_save_videos") is not False for camera in cameras}
-    uploaded_names = {
-        Path(file_name).name
-        for record in db.get_uploaded_video_records()
-        for file_name in (record.get("message", ""), record.get("teldrive_video_name", ""))
-        if Path(file_name).name
-    }
+    uploaded_records = db.get_uploaded_video_records()
+    uploaded_by_name: dict[str, dict[str, str]] = {}
+    for record in uploaded_records:
+        for file_name in (record.get("message", ""), record.get("teldrive_video_name", "")):
+            safe_name = Path(file_name).name
+            if safe_name:
+                uploaded_by_name[safe_name] = record
+    uploaded_names = set(uploaded_by_name)
     deleted = 0
     for path in sorted(CLIPS_DIR.iterdir()):
         if not path.is_file() or path.suffix.lower() not in {".mp4", ".avi"}:
@@ -204,6 +255,7 @@ def cleanup_uploaded_local_clips(config: dict[str, Any]) -> int:
                 config,
                 path,
                 camera_name,
+                thumbnail_path=extract_video_thumbnail(path),
                 event_time=meta.get("event_time", ""),
                 event_time_local=meta.get("event_time_local", ""),
             )
@@ -211,10 +263,20 @@ def cleanup_uploaded_local_clips(config: dict[str, Any]) -> int:
                 uploaded_names.add(path.name)
             else:
                 continue
+        uploaded_record = uploaded_by_name.get(path.name)
+        if uploaded_record and not uploaded_record.get("image_file"):
+            thumb_path = extract_video_thumbnail(path)
+            if thumb_path:
+                try:
+                    db.update_event_image(int(uploaded_record["id"]), thumb_path)
+                except Exception as exc:
+                    logger.warning("[RECORD] could not attach recording thumbnail file=%s error=%s", path.name, exc)
         if keep_local_by_camera.get(camera_name, True):
+            cleanup_temp_thumbnail(path)
             continue
         try:
             path.unlink()
+            cleanup_temp_thumbnail(path)
             deleted += 1
             logger.info("[RECORD] removed uploaded local clip file=%s", path.name)
         except OSError as exc:
@@ -401,7 +463,9 @@ def record_and_upload_clip(
         try:
             go2rtc_path = record_go2rtc_clip(config, camera, final_path)
             if go2rtc_path:
-                uploaded = upload_event_video_safe(config, go2rtc_path, camera_name)
+                with lock:
+                    thumbnail_path = save_frame_thumbnail(holder.get("frame"), video_thumbnail_path(go2rtc_path))
+                uploaded = upload_event_video_safe(config, go2rtc_path, camera_name, thumbnail_path=thumbnail_path)
                 cleanup_recording_if_needed(camera, go2rtc_path, uploaded)
                 return
         except Exception as exc:
@@ -449,7 +513,7 @@ def record_and_upload_clip(
 
     if raw_path and raw_path.exists() and raw_path.stat().st_size > 0:
         logger.info("[RECORD] raw clip saved file=%s", raw_path.name)
-        uploaded = upload_event_video_safe(config, raw_path, camera_name)
+        uploaded = upload_event_video_safe(config, raw_path, camera_name, thumbnail_path=extract_video_thumbnail(raw_path))
         cleanup_recording_if_needed(camera, raw_path, uploaded)
 
 

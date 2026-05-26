@@ -920,9 +920,10 @@
             </div>
           `;
         } else {
+          const posterAttr = thumbUrl ? ` poster="${esc(thumbUrl)}"` : "";
           mediaHtml = `
             <div class="recording-thumb-wrapper" style="cursor: default;">
-              <video class="lazy-recording-video" controls preload="none" data-src="${esc(item.video_url || "")}" data-title="${name} - ${esc(timeStr)}" style="width: 100%; height: 100%; object-fit: contain; background: #000; display: block;"></video>
+              <video class="lazy-recording-video" controls preload="none"${posterAttr} data-src="${esc(item.video_url || "")}" data-title="${name} - ${esc(timeStr)}" style="width: 100%; height: 100%; object-fit: contain; background: #000; display: block;"></video>
             </div>
           `;
         }
