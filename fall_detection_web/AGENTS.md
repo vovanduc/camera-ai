@@ -59,4 +59,4 @@ To ensure seamless, smooth loading across the dashboard:
 ## GitHub Updates
 
 After each source code update, commit the changes and push them to GitHub.
-Increase the add-on version in `simple_ai_vision/config.yaml` for every update.
+Note: Since fall_detection_web is a standalone web application, you do NOT need to increase the add-on version in `simple_ai_vision/config.yaml` when modifying fall_detection_web files.
