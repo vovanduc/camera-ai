@@ -32,7 +32,11 @@ def _api_base(config: dict[str, Any]) -> str:
 
 
 def _headers(config: dict[str, Any]) -> dict[str, str]:
-    return {"Authorization": f"Bearer {config['teldrive_token']}"}
+    token = str(config.get("teldrive_token", "")).strip()
+    return {
+        "Authorization": f"Bearer {token}",
+        "Cookie": f"user-session={token}; access_token={token}"
+    }
 
 
 def check_token(config: dict[str, Any], token: str | None = None, base_url: str | None = None) -> dict[str, Any]:
