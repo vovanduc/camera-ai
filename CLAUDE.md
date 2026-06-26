@@ -24,12 +24,14 @@ camera-ai đang trở thành **sản phẩm hợp nhất** của DCNET: đổ lo
 |---|---|---|
 | Tổng thể | [migration design](docs/superpowers/specs/2026-06-26-dcnet-platform-migration-design.md) | — |
 | 0. Unify DB (SQLite→Postgres) | (trong migration design) + [plan](docs/superpowers/plans/2026-06-26-phase0-unify-db-postgres.md) | ✅ DONE + merged (PR #1) |
-| 1. Module Đếm | [phase1-counting](docs/superpowers/specs/2026-06-26-phase1-counting-design.md) | spec ✅, chờ plan |
+| 1. Module Đếm | [phase1-counting](docs/superpowers/specs/2026-06-26-phase1-counting-design.md) + [plan](docs/superpowers/plans/2026-06-26-phase1-counting.md) | ✅ DONE (pipeline live-verified; chờ organic crossing để chốt số) |
 | 2. Module Group/Re-ID | [phase2-group-reid](docs/superpowers/specs/2026-06-26-phase2-group-reid-design.md) | spec ✅, chờ plan |
 | 3. Modular per-customer | [phase3-modular-percustomer](docs/superpowers/specs/2026-06-26-phase3-modular-percustomer-design.md) | spec ✅, chờ plan |
 | 4. Deploy/cutover | [phase4-deploy-cutover](docs/superpowers/specs/2026-06-26-phase4-deploy-cutover-design.md) | spec ✅, chờ plan |
 
 **Phase 0 đã đổi:** `db.py` SQLite→Postgres (psycopg), bảng FDW `events`→`incidents`. Implement tuần tự (mỗi phase phụ thuộc phase trước). Khi implement 1 phase: load spec đó → `writing-plans` → `subagent-driven-development` → PR → merge.
+
+**Phase 1 đã thêm:** service `services/event_collector/` (async aiomqtt+asyncpg, store-only MQTT→Postgres, idempotent INSERT, `MQTT_CLIENT_ID=event_collector_cameraai` DUY NHẤT — đọc ké broker cloud `camera-test.dcnet.vn:8883` TLS, KHÔNG kick collector DCNET prod); bảng `cameras`+`events` trong `init_db()` (collector cũng tự `ensure_schema` boot, tránh race); `counting.py` (pure VN+7 bucketing); route `/counting`+`/api/counting` (poll 3s) + `templates/counting.html`. Đếm = COUNT rows query-time, occupancy clamp ≥0. ⚠️ **Phase 4 reconcile:** FDW có 2 file requirements diverge (`requirements.txt` `+cpu` wheels vs `requirements.docker.txt` plain torch — workaround build arm64); chốt 1 strategy cho x86 prod.
 
 ## Read the AGENTS.md before editing either app
 
