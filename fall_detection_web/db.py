@@ -24,6 +24,7 @@ from psycopg_pool import ConnectionPool
 ROOT = Path(__file__).resolve().parent
 DATA_DIR = ROOT / "data"
 EVENT_IMAGES_DIR = DATA_DIR / "event_images"
+REID_CROPS_DIR = DATA_DIR / "reid_crops"
 
 LOCAL_TZ = timezone(timedelta(hours=7))
 MAX_EVENTS = 5000
@@ -703,3 +704,43 @@ def counting_crossings(day: date, cam_id: int | None = None) -> list[dict[str, A
     with get_conn() as conn:
         rows = conn.execute(sql, tuple(params)).fetchall()
     return [{"ts": r["ts"], "direction": r["direction"]} for r in rows]
+
+
+# ── Re-ID groups (Phase 2, read-only; worker ghi) ──
+
+def reid_live_groups(ttl_hours: float = 2, cam_id: int | None = None) -> list[dict[str, Any]]:
+    where = "last_seen >= now() - (%s || ' hours')::interval"
+    params: list[Any] = [str(ttl_hours)]
+    if cam_id is not None:
+        where += " AND cam_id = %s"
+        params.append(cam_id)
+    sql = (
+        "SELECT id, visit_count, first_seen, last_seen, rep_crop_path "
+        f"FROM person_group WHERE {where} ORDER BY last_seen DESC"
+    )
+    with get_conn() as conn:
+        rows = conn.execute(sql, tuple(params)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def reid_group_crops(group_id: int, limit: int = 40) -> list[dict[str, Any]]:
+    sql = (
+        "SELECT ac.kind, ac.path, ac.quality, a.ts "
+        "FROM appearance a JOIN appearance_crop ac ON ac.appearance_id = a.id "
+        "WHERE a.group_id = %s ORDER BY a.ts DESC, ac.kind LIMIT %s"
+    )
+    with get_conn() as conn:
+        rows = conn.execute(sql, (group_id, limit)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def reid_stats(ttl_hours: float = 2) -> dict[str, int]:
+    sql = (
+        "SELECT COUNT(*) AS unique_count, "
+        "COUNT(*) FILTER (WHERE visit_count > 1) AS reentry_count "
+        "FROM person_group WHERE last_seen >= now() - (%s || ' hours')::interval"
+    )
+    with get_conn() as conn:
+        row = conn.execute(sql, (str(ttl_hours),)).fetchone()
+    return {"unique_count": int(row["unique_count"] or 0),
+            "reentry_count": int(row["reentry_count"] or 0)}
