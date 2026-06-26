@@ -12,3 +12,5 @@ python-jose[cryptography]
 jinja2
 psutil
 redis
+psycopg[binary]==3.2.3
+psycopg-pool==3.2.3
