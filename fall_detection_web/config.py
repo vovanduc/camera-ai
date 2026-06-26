@@ -1,8 +1,8 @@
-"""Configuration management — stored in SQLite, overridable via .env / os.environ.
+"""Configuration management — stored in Postgres (qua db.py psycopg), overridable via .env / os.environ.
 
 Priority (highest → lowest):
   1. Environment variables / .env file  (secrets, container overrides)
-  2. SQLite settings table              (user changes via UI)
+  2. Postgres settings table             (user changes via UI)
   3. DEFAULT_CONFIG                     (built-in defaults)
 
 config.json is no longer written. On first startup, if config.json exists it is
