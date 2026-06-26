@@ -21,6 +21,9 @@ Spec gốc (dưới) viết khi chưa đọc `monitor.py`/`config.py`/`cameras.h
 - counting page filter `counting_enabled` (JOIN cameras) ✅
 - trang `/modules` toggle UI (SPA fetch, bảng cameras) + `/api/camera-modules` GET/POST ✅
 
+### Lưu ý vận hành:
+- **Auto-register default:** camera được `event_collector` tự đăng ký từ MQTT topic sẽ có `enabled=true` nhưng `counting_enabled=false` — các crossing của cam đó bị loại khỏi JOIN đếm một cách im lặng cho đến khi toggle bật tại `/modules`.
+
 ### DEFERRED (wire khi có deploy mixed multi-customer thật — disjoint + greenfield nên chưa cần):
 - §2.4/§2.5/§4.3/§5.h settings-JSON ↔ cameras-table merge + migration script (không có data).
 - §5.b monitor.py rewire (`cfg["cameras"]` → DB query) — đòi registry merge trước.

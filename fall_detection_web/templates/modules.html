@@ -33,15 +33,20 @@
   <h1>Module camera (per-customer)</h1>
   <p class="cap">Bật/tắt module độc lập mỗi camera. Module chạy ⟺ camera <b>enabled</b> + flag bật.
     (Registry counting/Re-ID. Camera fall-detection quản ở trang Cameras.)</p>
+  <p class="cap" style="color:#f59e0b">Hiện chỉ <b>Đếm</b> wire vào hành vi; Fall-det/Re-ID/Live là flag chuẩn bị (wire ở deploy mixed multi-customer).</p>
   <table>
     <thead><tr>
       <th>Camera</th><th>Trạng thái</th>
-      <th class="mod">Đếm</th><th class="mod">Fall-det</th><th class="mod">Re-ID</th><th class="mod">Live</th>
+      <th class="mod">Đếm</th>
+      <th class="mod">Fall-det<span style="font-weight:400;color:var(--muted);font-size:.62rem;display:block">(chưa wire)</span></th>
+      <th class="mod">Re-ID<span style="font-weight:400;color:var(--muted);font-size:.62rem;display:block">(chưa wire)</span></th>
+      <th class="mod">Live<span style="font-weight:400;color:var(--muted);font-size:.62rem;display:block">(chưa wire)</span></th>
     </tr></thead>
     <tbody id="rows"></tbody>
   </table>
   <div id="msg"></div>
   <script>
+    const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
     const MODS = ["counting", "fall_detection", "reid", "live"];
     async function load() {
       const r = await fetch("/api/camera-modules", { credentials: "same-origin" });
@@ -51,7 +56,7 @@
       if (!d.cameras.length) { rows.innerHTML = '<tr><td colspan="6" style="color:var(--muted)">Chưa có camera.</td></tr>'; return; }
       rows.innerHTML = d.cameras.map(c => `
         <tr class="${c.enabled ? '' : 'master off'}" data-id="${c.id}">
-          <td class="cam">${c.name}<div class="uid">${c.cam_uid}</div></td>
+          <td class="cam">${esc(c.name)}<div class="uid">${esc(c.cam_uid)}</div></td>
           <td><span class="badge ${c.enabled ? 'on' : 'off'}">${c.enabled ? 'ENABLED' : 'DISABLED'}</span></td>
           ${MODS.map(m => `<td class="mod"><input type="checkbox" data-mod="${m}" ${c[m + "_enabled"] ? "checked" : ""}></td>`).join("")}
         </tr>`).join("");
