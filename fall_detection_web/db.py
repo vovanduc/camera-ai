@@ -1,12 +1,15 @@
-"""SQLite database layer — events and users."""
+"""Database layer (PostgreSQL via psycopg) — incidents, users, settings.
+
+Phase 0: chuyển từ SQLite sang Postgres. Giữ nguyên signature hàm public.
+Bảng 'events' cũ → 'incidents' (tránh va chạm bảng counting 'events' ở phase sau).
+"""
 
 from __future__ import annotations
 
-import json
 import logging
+import os
 import random
 import shutil
-import sqlite3
 import time
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
@@ -14,19 +17,49 @@ from pathlib import Path
 from typing import Any, Generator
 from urllib.parse import quote
 
+import psycopg
+from psycopg.rows import dict_row
+from psycopg_pool import ConnectionPool
+
 ROOT = Path(__file__).resolve().parent
 DATA_DIR = ROOT / "data"
-DB_PATH = DATA_DIR / "fall_detection.db"
 EVENT_IMAGES_DIR = DATA_DIR / "event_images"
-# Legacy JSONL path for one-time migration
-LEGACY_EVENTS_PATH = DATA_DIR / "events.jsonl"
 
 LOCAL_TZ = timezone(timedelta(hours=7))
-MAX_EVENTS = 5000       # Maximum events to keep in DB
-PRUNE_BATCH = 500       # How many to prune when over limit
-IMAGE_MAX_AGE_SECONDS = 86400  # 24 hours
+MAX_EVENTS = 5000
+PRUNE_BATCH = 500
+IMAGE_MAX_AGE_SECONDS = 86400  # 24h
 
 logger = logging.getLogger("fall_detection_web")
+
+
+def _dsn() -> str:
+    url = os.environ.get("DATABASE_URL")
+    if url:
+        return url
+    return (
+        f"postgresql://{os.environ.get('DB_USER', 'dcnet')}:"
+        f"{os.environ.get('DB_PASSWORD', 'dcnet_dev')}@"
+        f"{os.environ.get('DB_HOST', 'localhost')}:"
+        f"{os.environ.get('DB_PORT', '5432')}/"
+        f"{os.environ.get('DB_NAME', 'dcnet')}"
+    )
+
+
+_pool: ConnectionPool | None = None
+
+
+def _get_pool() -> ConnectionPool:
+    global _pool
+    if _pool is None:
+        _pool = ConnectionPool(
+            conninfo=_dsn(),
+            min_size=1,
+            max_size=10,
+            kwargs={"row_factory": dict_row},
+            open=True,
+        )
+    return _pool
 
 
 def ensure_data_dir() -> None:
@@ -35,125 +68,56 @@ def ensure_data_dir() -> None:
 
 
 @contextmanager
-def get_conn() -> Generator[sqlite3.Connection, None, None]:
+def get_conn() -> Generator[psycopg.Connection, None, None]:
+    """Mượn connection từ pool. Tự commit khi thoát block, rollback nếu lỗi."""
     ensure_data_dir()
-    conn = sqlite3.connect(str(DB_PATH), timeout=10)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA foreign_keys=ON")
-    try:
+    with _get_pool().connection() as conn:
         yield conn
-        conn.commit()
-    except Exception:
-        conn.rollback()
-        raise
-    finally:
-        conn.close()
 
 
 def init_db() -> None:
-    """Create tables if they don't exist and run one-time migrations."""
+    """Tạo bảng nếu chưa có (Postgres, schema tường minh — không cần _ensure_column)."""
     ensure_data_dir()
     with get_conn() as conn:
-        conn.executescript("""
-            CREATE TABLE IF NOT EXISTS events (
-                id          INTEGER PRIMARY KEY AUTOINCREMENT,
-                time        TEXT NOT NULL,
-                time_local  TEXT,
-                status      TEXT NOT NULL,
-                camera      TEXT,
-                confidence  REAL,
-                ai_result   TEXT,
-                ai_raw      TEXT,
-                ai_response TEXT,
-                message     TEXT,
-                error       TEXT,
-                image_file  TEXT,
-                teldrive_image_id TEXT,
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS incidents (
+                id           BIGSERIAL PRIMARY KEY,
+                time         TEXT NOT NULL,
+                time_local   TEXT,
+                status       TEXT NOT NULL,
+                camera       TEXT,
+                confidence   REAL,
+                ai_result    TEXT,
+                ai_raw       TEXT,
+                ai_response  TEXT,
+                message      TEXT,
+                error        TEXT,
+                image_file   TEXT,
+                teldrive_image_id   TEXT,
                 teldrive_image_name TEXT,
                 teldrive_image_path TEXT,
-                teldrive_video_id TEXT,
+                teldrive_video_id   TEXT,
                 teldrive_video_name TEXT,
                 teldrive_video_path TEXT
-            );
-
+            )
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_incidents_time ON incidents (time DESC)")
+        conn.execute("""
             CREATE TABLE IF NOT EXISTS users (
-                id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                id            BIGSERIAL PRIMARY KEY,
                 username      TEXT UNIQUE NOT NULL,
                 password_hash TEXT NOT NULL,
                 created_at    TEXT NOT NULL
-            );
-
+            )
+        """)
+        conn.execute("""
             CREATE TABLE IF NOT EXISTS settings (
                 key        TEXT PRIMARY KEY,
                 value      TEXT NOT NULL,
                 updated_at TEXT NOT NULL
-            );
-
-            CREATE INDEX IF NOT EXISTS idx_events_time ON events (time DESC);
-        """)
-        _ensure_column(conn, "events", "teldrive_image_id", "TEXT")
-        _ensure_column(conn, "events", "teldrive_image_name", "TEXT")
-        _ensure_column(conn, "events", "teldrive_image_path", "TEXT")
-        _ensure_column(conn, "events", "teldrive_video_id", "TEXT")
-        _ensure_column(conn, "events", "teldrive_video_name", "TEXT")
-        _ensure_column(conn, "events", "teldrive_video_path", "TEXT")
-    _migrate_jsonl()
-
-
-def _ensure_column(conn: sqlite3.Connection, table: str, column: str, col_type: str) -> None:
-    columns = {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
-    if column not in columns:
-        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}")
-
-
-def _migrate_jsonl() -> None:
-    """One-time migration: import legacy events.jsonl into SQLite."""
-    if not LEGACY_EVENTS_PATH.exists():
-        return
-    migrated_path = LEGACY_EVENTS_PATH.with_suffix(".jsonl.migrated")
-    if migrated_path.exists():
-        return
-    logger.info("[DB] Migrating legacy events.jsonl to SQLite…")
-    rows: list[tuple] = []
-    for line in LEGACY_EVENTS_PATH.read_text(encoding="utf-8", errors="replace").splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            event = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-        if not isinstance(event, dict):
-            continue
-        rows.append((
-            event.get("time", ""),
-            event.get("time_local", ""),
-            event.get("status", ""),
-            event.get("camera", ""),
-            event.get("confidence"),
-            event.get("ai_result", ""),
-            event.get("ai_raw", ""),
-            event.get("ai_response", ""),
-            event.get("message", ""),
-            event.get("error", ""),
-            event.get("image_file", ""),
-        ))
-    if rows:
-        with get_conn() as conn:
-            conn.executemany(
-                "INSERT INTO events (time,time_local,status,camera,confidence,ai_result,ai_raw,ai_response,message,error,image_file) "
-                "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-                rows,
             )
-        logger.info("[DB] Migrated %d events from JSONL", len(rows))
-    # Mark migration done by renaming
-    LEGACY_EVENTS_PATH.rename(migrated_path)
+        """)
 
-
-# ──────────────────────────────────────────────
-# Events
-# ──────────────────────────────────────────────
 
 def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -178,15 +142,13 @@ def save_event_image(source_path: Path | None, status_name: str) -> str:
     if not source_path or not source_path.exists():
         return ""
     cleanup_event_images()
-    # Thỉnh thoảng dọn dẹp các event quá 7 ngày
     if random.random() < 0.05:
         delete_old_events(7)
-        
+
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%f")
     safe_status = "".join(ch for ch in status_name if ch.isalnum() or ch in ("_", "-")) or "event"
     target = EVENT_IMAGES_DIR / f"{stamp}_{safe_status}.jpg"
-    
-    # Nén ảnh bằng OpenCV để giảm dung lượng
+
     try:
         import cv2
         img = cv2.imread(str(source_path))
@@ -200,32 +162,32 @@ def save_event_image(source_path: Path | None, status_name: str) -> str:
         else:
             shutil.copyfile(source_path, target)
     except Exception as e:
-        logger.warning(f"[DB] Lỗi khi nén ảnh {source_path}, sẽ copy raw: {e}")
+        logger.warning(f"[DB] Lỗi nén ảnh {source_path}, copy raw: {e}")
         shutil.copyfile(source_path, target)
-        
+
     return target.name
 
 
-def _prune_events(conn: sqlite3.Connection) -> None:
-    count = conn.execute("SELECT COUNT(*) FROM events").fetchone()[0]
+def _prune_events(conn: psycopg.Connection) -> None:
+    count = conn.execute("SELECT COUNT(*) AS n FROM incidents").fetchone()["n"]
     if count > MAX_EVENTS:
         to_delete = count - MAX_EVENTS + PRUNE_BATCH
         rows = conn.execute(
-            "SELECT image_file FROM events ORDER BY id ASC LIMIT ?",
+            "SELECT image_file FROM incidents ORDER BY id ASC LIMIT %s",
             (to_delete,),
         ).fetchall()
         for row in rows:
-            img = str(row[0] or "").strip()
+            img = str(row["image_file"] or "").strip()
             if img:
                 try:
                     (EVENT_IMAGES_DIR / img).unlink()
                 except OSError:
                     pass
         conn.execute(
-            "DELETE FROM events WHERE id IN (SELECT id FROM events ORDER BY id ASC LIMIT ?)",
+            "DELETE FROM incidents WHERE id IN (SELECT id FROM incidents ORDER BY id ASC LIMIT %s)",
             (to_delete,),
         )
-        logger.info("[DB] Pruned %d old events", to_delete)
+        logger.info("[DB] Pruned %d old incidents", to_delete)
 
 
 def invalidate_event_caches() -> None:
@@ -245,13 +207,11 @@ def insert_event(status_name: str, image_path: Path | None = None, save_image: b
     t = str(fields.get("event_time") or now_iso())
     t_local = str(fields.get("event_time_local") or local_iso())
     with get_conn() as conn:
-        cur = conn.execute(
-            "INSERT INTO events (time,time_local,status,camera,confidence,ai_result,ai_raw,ai_response,message,error,image_file,teldrive_image_id,teldrive_image_name,teldrive_image_path,teldrive_video_id,teldrive_video_name,teldrive_video_path) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        row = conn.execute(
+            "INSERT INTO incidents (time,time_local,status,camera,confidence,ai_result,ai_raw,ai_response,message,error,image_file,teldrive_image_id,teldrive_image_name,teldrive_image_path,teldrive_video_id,teldrive_video_name,teldrive_video_path) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
             (
-                t,
-                t_local,
-                status_name,
+                t, t_local, status_name,
                 fields.get("camera", ""),
                 fields.get("confidence"),
                 fields.get("ai_result", ""),
@@ -267,8 +227,8 @@ def insert_event(status_name: str, image_path: Path | None = None, save_image: b
                 fields.get("teldrive_video_name", ""),
                 fields.get("teldrive_video_path", ""),
             ),
-        )
-        event_id = cur.lastrowid
+        ).fetchone()
+        event_id = row["id"]
         _prune_events(conn)
     invalidate_event_caches()
     return {"id": event_id, "image_file": image_file}
@@ -277,7 +237,7 @@ def insert_event(status_name: str, image_path: Path | None = None, save_image: b
 def update_event_teldrive_image(event_id: int, file_data: dict[str, Any]) -> None:
     with get_conn() as conn:
         conn.execute(
-            "UPDATE events SET teldrive_image_id=?, teldrive_image_name=?, teldrive_image_path=? WHERE id=?",
+            "UPDATE incidents SET teldrive_image_id=%s, teldrive_image_name=%s, teldrive_image_path=%s WHERE id=%s",
             (
                 str(file_data.get("id", "")),
                 str(file_data.get("name", "")),
@@ -293,12 +253,12 @@ def update_event_image(event_id: int, image_path: Path, status_name: str = "reco
     if not image_file:
         return ""
     with get_conn() as conn:
-        conn.execute("UPDATE events SET image_file=? WHERE id=?", (image_file, event_id))
+        conn.execute("UPDATE incidents SET image_file=%s WHERE id=%s", (image_file, event_id))
     invalidate_event_caches()
     return image_file
 
 
-def find_matching_teldrive_image(conn: sqlite3.Connection, camera: str, event_time_str: str) -> tuple[str, str] | None:
+def find_matching_teldrive_image(conn: psycopg.Connection, camera: str, event_time_str: str) -> tuple[str, str] | None:
     if not camera or not event_time_str:
         return None
     try:
@@ -308,42 +268,39 @@ def find_matching_teldrive_image(conn: sqlite3.Connection, camera: str, event_ti
     t_min = (t_event - timedelta(seconds=120)).isoformat(timespec="seconds")
     t_max = (t_event + timedelta(seconds=120)).isoformat(timespec="seconds")
     row = conn.execute(
-        "SELECT teldrive_image_id, teldrive_image_name FROM events "
-        "WHERE camera = ? AND status = 'teldrive_video_uploaded' "
+        "SELECT teldrive_image_id, teldrive_image_name FROM incidents "
+        "WHERE camera = %s AND status = 'teldrive_video_uploaded' "
         "AND teldrive_image_id IS NOT NULL AND teldrive_image_id != '' "
-        "AND time >= ? AND time <= ? LIMIT 1",
-        (camera, t_min, t_max)
+        "AND time >= %s AND time <= %s LIMIT 1",
+        (camera, t_min, t_max),
     ).fetchone()
     if row:
-        return row[0], row[1]
+        return row["teldrive_image_id"], row["teldrive_image_name"]
     return None
 
 
 def get_events(
-    limit: int = 100, 
-    offset: int = 0, 
-    ai_result: str | None = None, 
+    limit: int = 100,
+    offset: int = 0,
+    ai_result: str | None = None,
     camera: str | None = None,
-    status: str | None = None
+    status: str | None = None,
 ) -> list[dict[str, Any]]:
-    query = "SELECT * FROM events"
-    params = []
+    query = "SELECT * FROM incidents"
+    params: list[Any] = []
     conditions = []
-    
     if ai_result:
-        conditions.append("ai_result = ?")
+        conditions.append("ai_result = %s")
         params.append(ai_result)
     if camera:
-        conditions.append("camera = ?")
+        conditions.append("camera = %s")
         params.append(camera)
     if status:
-        conditions.append("status = ?")
+        conditions.append("status = %s")
         params.append(status)
-        
     if conditions:
         query += " WHERE " + " AND ".join(conditions)
-        
-    query += " ORDER BY time DESC, id DESC LIMIT ? OFFSET ?"
+    query += " ORDER BY time DESC, id DESC LIMIT %s OFFSET %s"
     params.extend([limit, offset])
 
     with get_conn() as conn:
@@ -357,7 +314,6 @@ def get_events(
                 event["image_url"] = f"/api/teldrive/file/{event['teldrive_image_id']}/{name}"
             elif image_file and (EVENT_IMAGES_DIR / image_file).exists():
                 event["image_url"] = f"/api/event-image/{image_file}"
-                
             if not event.get("image_url") and event.get("status") == "verified":
                 matching = find_matching_teldrive_image(conn, event.get("camera"), event.get("time"))
                 if matching:
@@ -375,18 +331,18 @@ def get_recordings(
     date_from: str | None = None,
     date_to: str | None = None,
 ) -> list[dict[str, Any]]:
-    query = "SELECT * FROM events WHERE teldrive_video_id IS NOT NULL AND teldrive_video_id != ''"
+    query = "SELECT * FROM incidents WHERE teldrive_video_id IS NOT NULL AND teldrive_video_id != ''"
     params: list[Any] = []
     if camera:
-        query += " AND camera = ?"
+        query += " AND camera = %s"
         params.append(camera)
     if date_from:
-        query += " AND time >= ?"
+        query += " AND time >= %s"
         params.append(date_from)
     if date_to:
-        query += " AND time <= ?"
+        query += " AND time <= %s"
         params.append(date_to)
-    query += " ORDER BY time DESC, id DESC LIMIT ? OFFSET ?"
+    query += " ORDER BY time DESC, id DESC LIMIT %s OFFSET %s"
     params.extend([limit, offset])
     with get_conn() as conn:
         rows = conn.execute(query, params).fetchall()
@@ -394,7 +350,6 @@ def get_recordings(
     for item in recordings:
         name = quote(str(item["teldrive_video_name"]), safe="")
         item["video_url"] = f"/api/teldrive/file/{item['teldrive_video_id']}/{name}"
-        
         image_file = str(item.get("image_file") or "").strip()
         if item.get("teldrive_image_id") and item.get("teldrive_image_name"):
             img_name = quote(str(item["teldrive_image_name"]), safe="")
@@ -405,25 +360,25 @@ def get_recordings(
 
 
 def get_recordings_total(camera: str | None = None, date_from: str | None = None, date_to: str | None = None) -> int:
-    query = "SELECT COUNT(*) FROM events WHERE teldrive_video_id IS NOT NULL AND teldrive_video_id != ''"
+    query = "SELECT COUNT(*) AS n FROM incidents WHERE teldrive_video_id IS NOT NULL AND teldrive_video_id != ''"
     params: list[Any] = []
     if camera:
-        query += " AND camera = ?"
+        query += " AND camera = %s"
         params.append(camera)
     if date_from:
-        query += " AND time >= ?"
+        query += " AND time >= %s"
         params.append(date_from)
     if date_to:
-        query += " AND time <= ?"
+        query += " AND time <= %s"
         params.append(date_to)
     with get_conn() as conn:
-        return conn.execute(query, params).fetchone()[0]
+        return conn.execute(query, params).fetchone()["n"]
 
 
 def get_uploaded_video_records() -> list[dict[str, str]]:
     with get_conn() as conn:
         rows = conn.execute(
-            "SELECT id, camera, message, image_file, teldrive_image_id, teldrive_video_name FROM events "
+            "SELECT id, camera, message, image_file, teldrive_image_id, teldrive_video_name FROM incidents "
             "WHERE teldrive_video_id IS NOT NULL AND teldrive_video_id != ''"
         ).fetchall()
     return [
@@ -440,38 +395,34 @@ def get_uploaded_video_records() -> list[dict[str, str]]:
 
 
 def get_events_total(ai_result: str | None = None, camera: str | None = None, status: str | None = None) -> int:
-    query = "SELECT COUNT(*) FROM events"
-    params = []
+    query = "SELECT COUNT(*) AS n FROM incidents"
+    params: list[Any] = []
     conditions = []
-    
     if ai_result:
-        conditions.append("ai_result = ?")
+        conditions.append("ai_result = %s")
         params.append(ai_result)
     if camera:
-        conditions.append("camera = ?")
+        conditions.append("camera = %s")
         params.append(camera)
     if status:
-        conditions.append("status = ?")
+        conditions.append("status = %s")
         params.append(status)
-        
     if conditions:
         query += " WHERE " + " AND ".join(conditions)
-
     with get_conn() as conn:
-        count = conn.execute(query, params).fetchone()[0]
-    return count
+        return conn.execute(query, params).fetchone()["n"]
 
 
 def count_events() -> int:
     with get_conn() as conn:
-        return conn.execute("SELECT COUNT(*) FROM events").fetchone()[0]
+        return conn.execute("SELECT COUNT(*) AS n FROM incidents").fetchone()["n"]
 
 
 def clear_events(camera: str | None = None, recordings_only: bool = False, exclude_recordings: bool = False) -> int:
     conditions = []
     params: list[Any] = []
     if camera:
-        conditions.append("camera = ?")
+        conditions.append("camera = %s")
         params.append(camera)
     if recordings_only:
         conditions.append("teldrive_video_id IS NOT NULL AND teldrive_video_id != ''")
@@ -480,21 +431,20 @@ def clear_events(camera: str | None = None, recordings_only: bool = False, exclu
     where = f" WHERE {' AND '.join(conditions)}" if conditions else ""
 
     with get_conn() as conn:
-        rows = conn.execute(f"SELECT image_file FROM events{where}", params).fetchall()
-        deleted = conn.execute(f"DELETE FROM events{where}", params).rowcount
-
+        rows = conn.execute(f"SELECT image_file FROM incidents{where}", params).fetchall()
+        cur = conn.execute(f"DELETE FROM incidents{where}", params)
+        deleted = cur.rowcount
         remaining_images = {
-            str(row[0] or "").strip()
-            for row in conn.execute("SELECT image_file FROM events WHERE image_file IS NOT NULL AND image_file != ''").fetchall()
+            str(r["image_file"] or "").strip()
+            for r in conn.execute("SELECT image_file FROM incidents WHERE image_file IS NOT NULL AND image_file != ''").fetchall()
         }
 
     for row in rows:
-        image_file = str(row[0] or "").strip()
+        image_file = str(row["image_file"] or "").strip()
         if not image_file or image_file in remaining_images:
             continue
-        path = EVENT_IMAGES_DIR / image_file
         try:
-            path.unlink()
+            (EVENT_IMAGES_DIR / image_file).unlink()
         except OSError:
             pass
     invalidate_event_caches()
@@ -504,17 +454,16 @@ def clear_events(camera: str | None = None, recordings_only: bool = False, exclu
 def delete_old_events(days: int = 7) -> int:
     cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat(timespec="seconds")
     with get_conn() as conn:
-        rows = conn.execute("SELECT image_file FROM events WHERE time < ?", (cutoff,)).fetchall()
+        rows = conn.execute("SELECT image_file FROM incidents WHERE time < %s", (cutoff,)).fetchall()
         for row in rows:
-            img = str(row[0] or "").strip()
+            img = str(row["image_file"] or "").strip()
             if img:
                 try:
                     (EVENT_IMAGES_DIR / img).unlink()
                 except OSError:
                     pass
-        deleted = conn.execute("DELETE FROM events WHERE time < ?", (cutoff,)).rowcount
-    
-    # Clean up old cached teldrive files (images) to save space
+        deleted = conn.execute("DELETE FROM incidents WHERE time < %s", (cutoff,)).rowcount
+
     try:
         cache_dir = DATA_DIR / "teldrive_cache"
         if cache_dir.exists():
@@ -526,10 +475,10 @@ def delete_old_events(days: int = 7) -> int:
                     except OSError:
                         pass
     except Exception as e:
-        logger.warning(f"[DB] Lỗi khi dọn dẹp teldrive_cache: {e}")
+        logger.warning(f"[DB] Lỗi dọn teldrive_cache: {e}")
 
     if deleted > 0:
-        logger.info("[DB] Deleted %d events older than %d days", deleted, days)
+        logger.info("[DB] Deleted %d incidents older than %d days", deleted, days)
     invalidate_event_caches()
     return deleted
 
@@ -537,12 +486,12 @@ def delete_old_events(days: int = 7) -> int:
 def get_incident_trends(days: int = 7) -> list[dict[str, Any]]:
     cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat(timespec="seconds")
     query = """
-        SELECT 
-            substr(coalesce(time_local, time), 1, 10) as date_str,
-            upper(coalesce(ai_result, status)) as result,
-            COUNT(*) as count
-        FROM events
-        WHERE time >= ?
+        SELECT
+            substr(coalesce(time_local, time), 1, 10) AS date_str,
+            upper(coalesce(ai_result, status)) AS result,
+            COUNT(*) AS count
+        FROM incidents
+        WHERE time >= %s
         GROUP BY date_str, result
     """
     with get_conn() as conn:
@@ -550,27 +499,28 @@ def get_incident_trends(days: int = 7) -> list[dict[str, Any]]:
     return [dict(row) for row in rows]
 
 
-# ──────────────────────────────────────────────
-# Users
-# ──────────────────────────────────────────────
+# ── Users ──
 
 def get_user(username: str) -> dict[str, Any] | None:
     with get_conn() as conn:
-        row = conn.execute("SELECT * FROM users WHERE username=?", (username,)).fetchone()
+        row = conn.execute("SELECT * FROM users WHERE username=%s", (username,)).fetchone()
     return dict(row) if row else None
 
 
 def create_user(username: str, password_hash: str) -> None:
     with get_conn() as conn:
         conn.execute(
-            "INSERT INTO users (username, password_hash, created_at) VALUES (?,?,?)",
+            "INSERT INTO users (username, password_hash, created_at) VALUES (%s,%s,%s)",
             (username, password_hash, now_iso()),
         )
 
 
 def update_user(old_username: str, new_username: str, password_hash: str) -> None:
     with get_conn() as conn:
-        conn.execute("UPDATE users SET username=?, password_hash=? WHERE username=?", (new_username, password_hash, old_username))
+        conn.execute(
+            "UPDATE users SET username=%s, password_hash=%s WHERE username=%s",
+            (new_username, password_hash, old_username),
+        )
 
 
 def list_users() -> list[dict[str, Any]]:
@@ -579,43 +529,41 @@ def list_users() -> list[dict[str, Any]]:
     return [dict(r) for r in rows]
 
 
-# ──────────────────────────────────────────────
-# Settings (config storage in DB)
-# ──────────────────────────────────────────────
+# ── Settings ──
 
 def get_setting(key: str, default: str = "") -> str:
     with get_conn() as conn:
-        row = conn.execute("SELECT value FROM settings WHERE key=?", (key,)).fetchone()
-    return str(row[0]) if row else default
+        row = conn.execute("SELECT value FROM settings WHERE key=%s", (key,)).fetchone()
+    return str(row["value"]) if row else default
 
 
 def set_setting(key: str, value: str) -> None:
     with get_conn() as conn:
         conn.execute(
-            "INSERT INTO settings (key, value, updated_at) VALUES (?,?,?) "
+            "INSERT INTO settings (key, value, updated_at) VALUES (%s,%s,%s) "
             "ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at",
             (key, value, now_iso()),
         )
 
 
 def set_settings_bulk(data: dict[str, str]) -> None:
-    """Upsert multiple settings in one transaction."""
     ts = now_iso()
     rows = [(k, v, ts) for k, v in data.items()]
     with get_conn() as conn:
-        conn.executemany(
-            "INSERT INTO settings (key, value, updated_at) VALUES (?,?,?) "
-            "ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at",
-            rows,
-        )
+        with conn.cursor() as cur:
+            cur.executemany(
+                "INSERT INTO settings (key, value, updated_at) VALUES (%s,%s,%s) "
+                "ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at",
+                rows,
+            )
 
 
 def get_all_settings() -> dict[str, str]:
     with get_conn() as conn:
         rows = conn.execute("SELECT key, value FROM settings").fetchall()
-    return {row[0]: row[1] for row in rows}
+    return {row["key"]: row["value"] for row in rows}
 
 
 def delete_setting(key: str) -> None:
     with get_conn() as conn:
-        conn.execute("DELETE FROM settings WHERE key=?", (key,))
+        conn.execute("DELETE FROM settings WHERE key=%s", (key,))

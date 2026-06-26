@@ -1,0 +1,6 @@
+.env
+fall_detection_web/.env
+__pycache__/
+*.pyc
+fall_detection_web/data/
+.superpowers/

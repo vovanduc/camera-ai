@@ -31,7 +31,7 @@ ALWAYS prioritize:
 Allowed libraries and tools:
 * **Core:** FastAPI, Uvicorn, Jinja2 Templates, python-multipart.
 * **AI & Computer Vision:** PyTorch, torchvision, opencv-python, ultralytics (YOLOv8).
-* **Database & Auth:** SQLite (WAL mode), bcrypt, python-jose.
+* **Database & Auth:** PostgreSQL (psycopg v3, psycopg-pool) — bảng `incidents` (cũ: `events`), `users`, `settings`; bcrypt, python-jose. DSN qua env `DATABASE_URL`. (Phase 0: đã migrate từ SQLite sang Postgres — xem `docs/superpowers/specs/2026-06-26-dcnet-platform-migration-design.md`.)
 * **Cloud Integration:** Teldrive, Requests.
 * **Caching & State Management:** Redis (for session caching, stream state, and performance optimization), local Disk Cache, and Browser HTTP Cache headers.
 * **System Utilities:** psutil.
