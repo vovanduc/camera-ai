@@ -18,6 +18,7 @@ from fastapi.templating import Jinja2Templates
 import ai
 import auth
 import config
+import counting
 import db
 import monitor
 import teldrive
@@ -147,6 +148,29 @@ def camera_page(request: Request, camera_name: str, _: str = Depends(auth.requir
     if not camera_name.strip():
         return RedirectResponse(url="/cameras", status_code=status.HTTP_302_FOUND)
     return templates.TemplateResponse(request=request, name="camera_detail.html", context={"camera_name": camera_name})
+
+
+@app.get("/counting", response_class=HTMLResponse)
+def counting_page(request: Request, _: str = Depends(auth.require_auth)):
+    return templates.TemplateResponse(request=request, name="counting.html", context={})
+
+
+@app.get("/api/counting")
+def api_counting(_: str = Depends(auth.require_auth)):
+    from datetime import datetime, timezone, timedelta
+    vn_today = datetime.now(timezone(timedelta(hours=7))).date()
+    occ = db.counting_occupancy_today()
+    crossings = db.counting_crossings(vn_today)
+    hourly = counting.bucket_hourly(crossings, vn_today)
+    log_rows = [
+        {"ts": c["ts"].astimezone(timezone(timedelta(hours=7))).strftime("%H:%M:%S"),
+         "direction": c["direction"]}
+        for c in crossings[:50]
+    ]
+    return {
+        "occupancy": occ["occupancy"], "in": occ["in"], "out": occ["out"],
+        "hourly": hourly, "log": log_rows,
+    }
 
 
 @app.get("/{page_name}", response_class=HTMLResponse)

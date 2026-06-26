@@ -31,6 +31,24 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  event_collector:
+    build: ./services/event_collector
+    env_file:
+      - path: ./services/event_collector/.env
+        required: false
+    environment:
+      DATABASE_URL: postgresql://dcnet:${DB_PASSWORD:-dcnet_dev}@postgres:5432/dcnet
+      MQTT_HOST: ${MQTT_HOST:-camera-test.dcnet.vn}
+      MQTT_PORT: ${MQTT_PORT:-8883}
+      MQTT_TLS: ${MQTT_TLS:-true}
+      MQTT_USER: ${MQTT_USER:-}
+      MQTT_PASSWORD: ${MQTT_PASSWORD:-}
+      MQTT_CLIENT_ID: ${MQTT_CLIENT_ID:-event_collector_cameraai}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   pgdata:
   fdw_data:

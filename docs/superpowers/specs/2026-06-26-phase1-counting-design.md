@@ -1,7 +1,7 @@
 # Design — Phase 1: Module ĐẾM người ra/vào
 
 **Ngày:** 2026-06-26
-**Trạng thái:** DESIGN (chờ review)
+**Trạng thái:** DONE (implemented — plan `../plans/2026-06-26-phase1-counting.md`, branch `feat/phase1-counting`; pipeline live-verified, chờ organic crossing chốt số)
 **Phase:** 1 / 5 (xem tổng thể: `2026-06-26-dcnet-platform-migration-design.md`)
 **Tiền đề:** Phase 0 DONE + merged — FDW chạy Postgres (`incidents`/`users`/`settings`), `docker-compose.yml` (postgres pgvector/pg16 + fall_detection_web), psycopg sync.
 **Nguồn port:** repo `dcnet-cloud/camera` (`services/event_collector/`, `services/dashboard/.../counting.py` + `app.py`, `db/init.sql`).

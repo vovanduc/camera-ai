@@ -12,7 +12,7 @@ import random
 import shutil
 import time
 from contextlib import contextmanager
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Generator
 from urllib.parse import quote
@@ -116,6 +116,44 @@ def init_db() -> None:
                 value      TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS cameras (
+                id          SERIAL PRIMARY KEY,
+                cam_uid     TEXT UNIQUE NOT NULL,
+                name        TEXT NOT NULL,
+                rtsp_url    TEXT NOT NULL,
+                mjpeg_url   TEXT,
+                vendor      TEXT DEFAULT 'axis',
+                model       TEXT,
+                location    TEXT,
+                enabled     BOOLEAN DEFAULT true,
+                created_at  TIMESTAMPTZ DEFAULT now()
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS events (
+                id              BIGSERIAL PRIMARY KEY,
+                cam_id          INT REFERENCES cameras(id),
+                ts              TIMESTAMPTZ NOT NULL,
+                type            TEXT NOT NULL,
+                direction       TEXT,
+                axis_object_id  TEXT,
+                payload         JSONB NOT NULL,
+                snapshot_path   TEXT,
+                face_path       TEXT,
+                face_score      REAL,
+                created_at      TIMESTAMPTZ DEFAULT now(),
+                UNIQUE (cam_id, axis_object_id, ts, direction)
+            )
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS events_cam_ts ON events (cam_id, ts DESC)")
+        conn.execute("CREATE INDEX IF NOT EXISTS events_type_ts ON events (type, ts DESC)")
+        conn.execute("""
+            INSERT INTO cameras (cam_uid, name, rtsp_url, model, location)
+            VALUES ('B8A44F4627CE', 'Cửa cty HCM',
+                    'rtsp://192.168.100.47/axis-media/media.amp', 'M3216-LVE', 'HCM')
+            ON CONFLICT (cam_uid) DO NOTHING
         """)
 
 
@@ -567,3 +605,56 @@ def get_all_settings() -> dict[str, str]:
 def delete_setting(key: str) -> None:
     with get_conn() as conn:
         conn.execute("DELETE FROM settings WHERE key=%s", (key,))
+
+
+# ── Counting (Phase 1) ──
+
+def list_cameras() -> list[dict[str, Any]]:
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT id, cam_uid, name, model, location, enabled "
+            "FROM cameras ORDER BY id"
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def cam_id_for(cam_uid: str) -> int | None:
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT id FROM cameras WHERE cam_uid = %s", (cam_uid,)
+        ).fetchone()
+    return int(row["id"]) if row else None
+
+
+def counting_occupancy_today(cam_id: int | None = None) -> dict[str, int]:
+    """IN/OUT/occupancy của NGÀY VN hiện tại. occupancy clamp >= 0."""
+    where = "type = 'counter' AND (ts AT TIME ZONE 'Asia/Ho_Chi_Minh')::date " \
+            "= (now() AT TIME ZONE 'Asia/Ho_Chi_Minh')::date"
+    params: tuple[Any, ...] = ()
+    if cam_id is not None:
+        where += " AND cam_id = %s"
+        params = (cam_id,)
+    sql = (
+        "SELECT "
+        "COUNT(*) FILTER (WHERE direction = 'in')  AS ins, "
+        "COUNT(*) FILTER (WHERE direction = 'out') AS outs "
+        f"FROM events WHERE {where}"
+    )
+    with get_conn() as conn:
+        row = conn.execute(sql, params).fetchone()
+    ins = int(row["ins"] or 0)
+    outs = int(row["outs"] or 0)
+    return {"in": ins, "out": outs, "occupancy": max(0, ins - outs)}
+
+
+def counting_crossings(day: date, cam_id: int | None = None) -> list[dict[str, Any]]:
+    """Crossing rows của 1 ngày VN — cho bucket_hourly + log. ts trả về aware UTC."""
+    where = "type = 'counter' AND (ts AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = %s"
+    params: list[Any] = [day]
+    if cam_id is not None:
+        where += " AND cam_id = %s"
+        params.append(cam_id)
+    sql = f"SELECT ts, direction FROM events WHERE {where} ORDER BY ts DESC"
+    with get_conn() as conn:
+        rows = conn.execute(sql, tuple(params)).fetchall()
+    return [{"ts": r["ts"], "direction": r["direction"]} for r in rows]
