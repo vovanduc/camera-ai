@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Đếm ra/vào — DCNET Camera</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.ico">
+  <style>
+    :root { --bg:#0f172a; --card:#1e293b; --text:#e2e8f0; --muted:#94a3b8;
+            --in:#22c55e; --out:#ef4444; --acc:#38bdf8; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--text);
+           font-family:system-ui,-apple-system,sans-serif; padding:24px; }
+    a { color:var(--acc); text-decoration:none; }
+    h1 { font-size:1.4rem; margin:0 0 16px; }
+    .nums { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:24px; }
+    .num { background:var(--card); border-radius:12px; padding:20px; text-align:center; }
+    .num .v { font-size:2.4rem; font-weight:700; }
+    .num .l { color:var(--muted); font-size:.85rem; margin-top:4px; }
+    .num.in .v { color:var(--in); } .num.out .v { color:var(--out); }
+    .grid2 { display:grid; grid-template-columns:2fr 1fr; gap:16px; }
+    .panel { background:var(--card); border-radius:12px; padding:16px; }
+    .panel h2 { font-size:1rem; margin:0 0 12px; color:var(--muted); }
+    .bars { display:flex; align-items:flex-end; gap:3px; height:180px; }
+    .bar { flex:1; display:flex; flex-direction:column; justify-content:flex-end;
+           align-items:center; gap:1px; }
+    .bar .seg-in { width:100%; background:var(--in); border-radius:2px 2px 0 0; }
+    .bar .seg-out { width:100%; background:var(--out); }
+    .bar .hr { font-size:.6rem; color:var(--muted); margin-top:4px; }
+    .log { max-height:360px; overflow-y:auto; font-size:.85rem; }
+    .log .row { display:flex; justify-content:space-between; padding:6px 0;
+                border-bottom:1px solid rgba(148,163,184,.15); }
+    .tag { padding:1px 8px; border-radius:6px; font-weight:600; font-size:.75rem; }
+    .tag.in { background:rgba(34,197,94,.2); color:var(--in); }
+    .tag.out { background:rgba(239,68,68,.2); color:var(--out); }
+    @media (max-width:760px){ .grid2{grid-template-columns:1fr;} }
+  </style>
+</head>
+<body>
+  <p><a href="/">← Dashboard</a></p>
+  <h1>Đếm người ra/vào — hôm nay</h1>
+  <div class="nums">
+    <div class="num"><div class="v" id="occ">–</div><div class="l">Đang trong phòng</div></div>
+    <div class="num in"><div class="v" id="in">–</div><div class="l">VÀO hôm nay</div></div>
+    <div class="num out"><div class="v" id="out">–</div><div class="l">RA hôm nay</div></div>
+  </div>
+  <div class="grid2">
+    <div class="panel">
+      <h2>Theo giờ (VN) — <span style="color:var(--in)">vào</span> / <span style="color:var(--out)">ra</span></h2>
+      <div class="bars" id="bars"></div>
+    </div>
+    <div class="panel">
+      <h2>Log crossing gần nhất</h2>
+      <div class="log" id="log"></div>
+    </div>
+  </div>
+  <script>
+    async function refresh() {
+      try {
+        const r = await fetch("/api/counting", { credentials: "same-origin" });
+        if (!r.ok) return;
+        const d = await r.json();
+        document.getElementById("occ").textContent = d.occupancy;
+        document.getElementById("in").textContent = d.in;
+        document.getElementById("out").textContent = d.out;
+        const max = Math.max(1, ...d.hourly.map(h => h.in + h.out));
+        document.getElementById("bars").innerHTML = d.hourly.map(h => `
+          <div class="bar" title="${h.hour}h — vào ${h.in}, ra ${h.out}">
+            <div class="seg-in" style="height:${h.in / max * 160}px"></div>
+            <div class="seg-out" style="height:${h.out / max * 160}px"></div>
+            <div class="hr">${h.hour}</div>
+          </div>`).join("");
+        document.getElementById("log").innerHTML = d.log.length
+          ? d.log.map(l => `<div class="row"><span>${l.ts}</span>
+              <span class="tag ${l.direction}">${l.direction === "in" ? "VÀO" : "RA"}</span></div>`).join("")
+          : '<div style="color:var(--muted)">Chưa có crossing hôm nay.</div>';
+      } catch (e) { /* giữ giá trị cũ khi lỗi mạng */ }
+    }
+    refresh();
+    setInterval(refresh, 3000);
+  </script>
+</body>
+</html>
