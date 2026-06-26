@@ -152,3 +152,16 @@ FDW **không có test suite** (chuẩn repo: verify bằng chạy app). Phase 0 
 
 1. **DB target = Postgres MỚI trong camera-ai** (compose riêng, `pgvector/pgvector:pg16`). Độc lập prod DCNET live, gộp schema counting/Re-ID vào dần ở phase sau.
 2. **Greenfield** — chưa có data FDW thật → data-migration script (P0.5) **optional, skip**. Verification Phase 0 bỏ bước migrate-data; tập trung init schema + CRUD trên Postgres sạch.
+
+
+---
+## Spec index (5 phase)
+| Phase | Spec | Plan | Trạng thái |
+|---|---|---|---|
+| 0 Unify DB | (trong doc này) | [plan](../plans/2026-06-26-phase0-unify-db-postgres.md) | ✅ DONE + merged (PR #1) |
+| 1 Đếm | [phase1](2026-06-26-phase1-counting-design.md) | chưa | spec ✅ |
+| 2 Group/Re-ID | [phase2](2026-06-26-phase2-group-reid-design.md) | chưa | spec ✅ |
+| 3 Modular per-customer | [phase3](2026-06-26-phase3-modular-percustomer-design.md) | chưa | spec ✅ |
+| 4 Deploy/cutover | [phase4](2026-06-26-phase4-deploy-cutover-design.md) | chưa | spec ✅ |
+
+Implement tuần tự: mỗi phase spec → writing-plans → subagent execute → PR → merge.

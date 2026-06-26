@@ -16,6 +16,21 @@ This is a **monorepo of two independent applications** that share only a domain 
 
 **Diagrams** ([`docs/diagrams/`](docs/diagrams)) are produced by the `dcnet-diagram` skill: each `.html` is self-contained (dark/light toggle, PNG/SVG export) and re-rendered from its JSON-IR in `docs/diagrams/src/`. Start from [`docs/diagrams/README.md`](docs/diagrams/README.md) (file index + how-to) and [`docs/diagrams/EXPLAINER.md`](docs/diagrams/EXPLAINER.md) (per-diagram detail + provenance). To update a diagram, edit the `src/*.json`, re-run the matching renderer, then rebuild the gallery (`build_gallery.py manifest.json .`). Keep diagrams in sync when either app's flow changes. This `docs/diagrams/` folder is mirrored identically in the sibling `camera-check` repo.
 
+## DCNET Platform Migration (đang triển khai — 2026-06-26)
+
+camera-ai đang trở thành **sản phẩm hợp nhất** của DCNET: đổ logic từ repo `dcnet-cloud/camera` (đếm người ra/vào + Re-ID) vào `fall_detection_web`, mỗi feature = module bật/tắt per-customer, DB thống nhất PostgreSQL. Chia 5 phase, mỗi phase 1 spec→plan→PR. **Design specs ở `docs/superpowers/specs/`, plans ở `docs/superpowers/plans/`.**
+
+| Phase | Spec | Trạng thái |
+|---|---|---|
+| Tổng thể | [migration design](docs/superpowers/specs/2026-06-26-dcnet-platform-migration-design.md) | — |
+| 0. Unify DB (SQLite→Postgres) | (trong migration design) + [plan](docs/superpowers/plans/2026-06-26-phase0-unify-db-postgres.md) | ✅ DONE + merged (PR #1) |
+| 1. Module Đếm | [phase1-counting](docs/superpowers/specs/2026-06-26-phase1-counting-design.md) | spec ✅, chờ plan |
+| 2. Module Group/Re-ID | [phase2-group-reid](docs/superpowers/specs/2026-06-26-phase2-group-reid-design.md) | spec ✅, chờ plan |
+| 3. Modular per-customer | [phase3-modular-percustomer](docs/superpowers/specs/2026-06-26-phase3-modular-percustomer-design.md) | spec ✅, chờ plan |
+| 4. Deploy/cutover | [phase4-deploy-cutover](docs/superpowers/specs/2026-06-26-phase4-deploy-cutover-design.md) | spec ✅, chờ plan |
+
+**Phase 0 đã đổi:** `db.py` SQLite→Postgres (psycopg), bảng FDW `events`→`incidents`. Implement tuần tự (mỗi phase phụ thuộc phase trước). Khi implement 1 phase: load spec đó → `writing-plans` → `subagent-driven-development` → PR → merge.
+
 ## Read the AGENTS.md before editing either app
 
 Each subproject has an `AGENTS.md` that encodes hard constraints. **These override general instincts — read the relevant one before changing code.** Highlights:
