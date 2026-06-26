@@ -49,6 +49,30 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  reid_worker:
+    build: ./services/reid_worker
+    profiles: ["reid"]
+    env_file:
+      - path: ./.env
+        required: false
+    environment:
+      DATABASE_URL: postgresql://dcnet:${DB_PASSWORD:-dcnet_dev}@postgres:5432/dcnet
+      MQTT_HOST: ${MQTT_HOST:-camera-test.dcnet.vn}
+      MQTT_PORT: ${MQTT_PORT:-8883}
+      MQTT_TLS: ${MQTT_TLS:-true}
+      MQTT_USER: ${MQTT_USER:-}
+      MQTT_PASSWORD: ${MQTT_PASSWORD:-}
+      MQTT_CLIENT_ID: reid_worker_cameraai
+      REID_FACE_ENABLED: "false"
+      REID_TOPIC: poc/objsnap
+      DATA_DIR: /app/data
+    volumes:
+      - fdw_data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   pgdata:
   fdw_data:
