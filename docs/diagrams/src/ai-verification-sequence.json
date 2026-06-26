@@ -24,7 +24,7 @@
   ],
   "messages": [
     { "from": "monitor", "to": "verify", "y": 172, "label": "verify_scene(img, camera)", "variant": "emphasis" },
-    { "from": "verify", "to": "primary", "y": 210, "label": "POST /chat/completions (text + image_url)", "variant": "default" },
+    { "from": "verify", "to": "primary", "y": 210, "label": "POST /chat/completions (text + image_url)", "variant": "default", "note": "prompt theo camera.prompt_id, mặc định verify_prompt; ảnh base64 data URL; max_tokens=1000, timeout 120s" },
     { "from": "primary", "to": "verify", "y": 244, "label": "5xx / timeout", "variant": "security" },
     { "from": "verify", "to": "fallback", "y": 284, "label": "retry: fallback model", "variant": "emphasis" },
     { "from": "fallback", "to": "verify", "y": 322, "label": "200: content", "variant": "return" },

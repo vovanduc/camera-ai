@@ -2,10 +2,10 @@
   "schema_version": 1,
   "diagram_type": "architecture",
   "meta": {
-    "title": "Kiến trúc hệ thống — Fall Detection Web",
-    "subtitle": "Camera → go2rtc → YOLO + AI Vision → cảnh báo & lưu trữ",
+    "title": "Kiến trúc hệ thống — DCNET Camera AI",
+    "subtitle": "Fall Detection Web (YOLO + AI Vision) và add-on Simple AI Vision dùng chung dịch vụ",
     "output": "system-architecture.html",
-    "viewBox": [1200, 660]
+    "viewBox": [1200, 780]
   },
   "components": [
     { "id": "cam", "type": "external", "label": "IP Camera", "sublabel": "RTSP H.264/H.265", "pos": [40, 300], "size": [120, 64] },
@@ -19,12 +19,15 @@
     { "id": "sqlite", "type": "database", "label": "SQLite WAL", "sublabel": "events / recordings", "pos": [780, 440], "size": [150, 60] },
     { "id": "ai", "type": "cloud", "label": "AI Vision API", "sublabel": "OpenAI-compatible", "pos": [990, 200], "size": [160, 66], "tag": "primary + fallback" },
     { "id": "telegram", "type": "cloud", "label": "Telegram", "sublabel": "sendPhoto", "pos": [990, 330], "size": [160, 60] },
-    { "id": "teldrive", "type": "cloud", "label": "Teldrive", "sublabel": "Telegram VFS", "pos": [990, 450], "size": [160, 60], "tag": "Static API Key" }
+    { "id": "teldrive", "type": "cloud", "label": "Teldrive", "sublabel": "Telegram VFS", "pos": [990, 450], "size": [160, 60], "tag": "Static API Key" },
+    { "id": "ha", "type": "external", "label": "Home Assistant", "sublabel": "automation", "pos": [40, 620], "size": [130, 60] },
+    { "id": "saiv", "type": "backend", "label": "Simple AI Vision", "sublabel": "/analyze :8000", "pos": [380, 620], "size": [160, 60], "tag": "keyword match" }
   ],
   "boundaries": [
     { "kind": "region", "label": "Camera LAN", "wraps": ["cam"] },
     { "kind": "region", "label": "VPS · fall_detection_web (FastAPI + uvicorn)", "wraps": ["go2rtc", "webui", "monitor", "capture", "yolo", "redis", "aiclient", "sqlite"] },
-    { "kind": "region", "label": "Cloud · dịch vụ ngoài", "wraps": ["ai", "telegram", "teldrive"] }
+    { "kind": "region", "label": "Cloud · dịch vụ ngoài", "wraps": ["ai", "telegram", "teldrive"] },
+    { "kind": "region", "label": "Home Assistant Add-on · simple_ai_vision", "wraps": ["ha", "saiv"] }
   ],
   "connections": [
     { "from": "cam", "to": "go2rtc", "label": "RTSP", "variant": "default" },
@@ -38,11 +41,16 @@
     { "from": "monitor", "to": "sqlite", "label": "log_event", "variant": "default", "fromSide": "bottom", "toSide": "left", "labelAt": [628, 405] },
     { "from": "monitor", "to": "teldrive", "label": "record + upload clip", "variant": "dashed", "fromSide": "bottom", "toSide": "left", "labelAt": [760, 532] },
     { "from": "webui", "to": "sqlite", "label": "API query", "variant": "default", "fromSide": "right", "toSide": "top", "labelAt": [620, 250] },
-    { "from": "webui", "to": "redis", "label": "cache read", "variant": "dashed", "fromSide": "bottom", "toSide": "top", "labelAt": [555, 362] }
+    { "from": "webui", "to": "redis", "label": "cache read", "variant": "dashed", "fromSide": "bottom", "toSide": "top", "labelAt": [555, 362] },
+    { "from": "ha", "to": "saiv", "label": "POST /analyze", "variant": "emphasis" },
+    { "from": "saiv", "to": "go2rtc", "label": "snapshot", "variant": "dashed", "fromSide": "top", "toSide": "bottom", "labelAt": [300, 500] },
+    { "from": "saiv", "to": "ai", "label": "analyze ảnh", "variant": "dashed", "fromSide": "right", "toSide": "bottom", "labelAt": [640, 700] },
+    { "from": "saiv", "to": "telegram", "label": "sendPhoto", "variant": "dashed", "fromSide": "right", "toSide": "bottom", "labelAt": [870, 700] }
   ],
   "cards": [
     { "dot": "cyan", "title": "Thu nhận khung hình", "items": ["Mỗi camera có 1 Capture Thread riêng (buffer=1)", "Ưu tiên go2rtc frame.jpeg, fallback RTSP IP camera", "Frame mới đẩy vào holder kèm seq để Monitor đọc"] },
     { "dot": "emerald", "title": "Suy luận & xác minh", "items": ["YOLOv8 phát hiện person (class 0) trên CPU", "AI Client gọi Vision API khi có người + đủ verify_interval", "Verdict SAFE / EMERGENCY điều khiển cảnh báo"] },
-    { "dot": "rose", "title": "Cảnh báo & lưu trữ", "items": ["EMERGENCY → Telegram sendPhoto (có alert_cooldown)", "log_event ghi vào SQLite (events/recordings)", "Teldrive lưu clip + thumbnail lên Telegram VFS", "Redis là cache fail-open, hỏng vẫn không vỡ request"] }
+    { "dot": "rose", "title": "Cảnh báo & lưu trữ", "items": ["EMERGENCY → Telegram sendPhoto (có alert_cooldown)", "log_event ghi vào SQLite (events/recordings)", "Teldrive lưu clip + thumbnail lên Telegram VFS", "Redis là cache fail-open, hỏng vẫn không vỡ request"] },
+    { "dot": "violet", "title": "Add-on Simple AI Vision", "items": ["Chạy trên Home Assistant, không YOLO/không vòng lặp", "HA Automation gọi POST /analyze khi có trigger", "Dùng chung go2rtc, AI Vision API và Telegram", "Phân loại bằng keyword regex (xem sơ đồ Simple AI Vision)"] }
   ]
 }

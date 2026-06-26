@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="generator" content="archify 2.6.0">
-  <title>Luồng AI — verify_scene (primary + fallback) Diagram</title>
+  <title>Simple AI Vision — Luồng /analyze Diagram</title>
   <script>
     // Resolve the theme before first paint so light-preference users don't
     // see a dark flash. The toolbar script below re-applies with UI state.
@@ -494,14 +494,14 @@
     <div class="header">
       <div class="header-row">
         <div class="pulse-dot"></div>
-        <h1>Luồng AI — verify_scene (primary + fallback)</h1>
+        <h1>Simple AI Vision — Luồng /analyze</h1>
       </div>
-      <p class="subtitle">Gọi Vision API, tự fallback khi lỗi, parse verdict rồi cảnh báo &amp; ghi log</p>
+      <p class="subtitle">Home Assistant trigger → snapshot → AI Vision → keyword match → Telegram</p>
     </div>
 
     <!-- Main Diagram -->
     <div class="diagram-container">
-      <svg viewBox="0 0 920 720" role="img" aria-label="Luồng AI — verify_scene (primary + fallback) — Gọi Vision API, tự fallback khi lỗi, parse verdict rồi cảnh báo &amp; ghi log (sequence diagram)">
+      <svg viewBox="0 0 880 700" role="img" aria-label="Simple AI Vision — Luồng /analyze — Home Assistant trigger → snapshot → AI Vision → keyword match → Telegram (sequence diagram)">
         <!-- Definitions -->
         <defs>
           <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
@@ -525,114 +525,110 @@
         <rect width="100%" height="100%" fill="url(#grid)" />
 
         <!-- Time Segments -->
-        <rect x="48" y="150" width="824" height="100" rx="10" class="c-lane" stroke-width="1"/>
-        <text x="62" y="168" class="t-dim" font-size="9" font-weight="600">Gọi model chính</text>
+        <rect x="48" y="168" width="784" height="108" rx="10" class="c-lane" stroke-width="1"/>
+        <text x="62" y="186" class="t-dim" font-size="9" font-weight="600">Snapshot</text>
 
-        <rect x="48" y="262" width="824" height="90" rx="10" class="c-lane" stroke-width="1"/>
-        <text x="62" y="280" class="t-dim" font-size="9" font-weight="600">Fallback khi lỗi</text>
+        <rect x="48" y="290" width="784" height="62" rx="10" class="c-lane" stroke-width="1"/>
+        <text x="62" y="308" class="t-dim" font-size="9" font-weight="600">Phân tích AI</text>
 
-        <rect x="48" y="364" width="824" height="88" rx="10" class="c-lane" stroke-width="1"/>
-        <text x="62" y="382" class="t-dim" font-size="9" font-weight="600">Parse verdict</text>
+        <rect x="48" y="366" width="784" height="136" rx="10" class="c-lane" stroke-width="1"/>
+        <text x="62" y="384" class="t-dim" font-size="9" font-weight="600">Khớp keyword &amp; gửi</text>
 
-        <rect x="48" y="464" width="824" height="136" rx="10" class="c-lane" stroke-width="1"/>
-        <text x="62" y="482" class="t-dim" font-size="9" font-weight="600">Cảnh báo &amp; log</text>
+        <rect x="48" y="516" width="784" height="64" rx="10" class="c-lane" stroke-width="1"/>
+        <text x="62" y="534" class="t-dim" font-size="9" font-weight="600">Ghi log + trả về</text>
 
         <!-- Lifelines -->
-        <path d="M 62 142 L 62 655" class="a-default" stroke-width="0.8" stroke-dasharray="3,7"/>
-        <path d="M 170 142 L 170 655" class="a-default" stroke-width="0.8" stroke-dasharray="3,7"/>
-        <path d="M 278 142 L 278 655" class="a-default" stroke-width="0.8" stroke-dasharray="3,7"/>
-        <path d="M 386 142 L 386 655" class="a-default" stroke-width="0.8" stroke-dasharray="3,7"/>
-        <path d="M 494 142 L 494 655" class="a-default" stroke-width="0.8" stroke-dasharray="3,7"/>
-        <path d="M 602 142 L 602 655" class="a-default" stroke-width="0.8" stroke-dasharray="3,7"/>
-        <path d="M 710 142 L 710 655" class="a-default" stroke-width="0.8" stroke-dasharray="3,7"/>
+        <path d="M 62 142 L 62 635" class="a-default" stroke-width="0.8" stroke-dasharray="3,7"/>
+        <path d="M 170 142 L 170 635" class="a-default" stroke-width="0.8" stroke-dasharray="3,7"/>
+        <path d="M 278 142 L 278 635" class="a-default" stroke-width="0.8" stroke-dasharray="3,7"/>
+        <path d="M 386 142 L 386 635" class="a-default" stroke-width="0.8" stroke-dasharray="3,7"/>
+        <path d="M 494 142 L 494 635" class="a-default" stroke-width="0.8" stroke-dasharray="3,7"/>
+        <path d="M 602 142 L 602 635" class="a-default" stroke-width="0.8" stroke-dasharray="3,7"/>
+        <path d="M 710 142 L 710 635" class="a-default" stroke-width="0.8" stroke-dasharray="3,7"/>
 
         <!-- Messages -->
-        <path d="M 69 172 L 163 172" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <rect x="45" y="152" width="142" height="16" rx="3" class="c-mask"/>
-        <text x="116" y="162" class="t-backend" font-size="9" text-anchor="middle">verify_scene(img, camera)</text>
+        <path d="M 69 185 L 163 185" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <rect x="52.8" y="165" width="126.4" height="16" rx="3" class="c-mask"/>
+        <text x="116" y="175" class="t-backend" font-size="9" text-anchor="middle">POST /analyze {camera}</text>
+        <text x="81" y="203" class="t-dim" font-size="7">bỏ qua nếu camera không cấu hình / bị tắt</text>
 
-        <path d="M 177 210 L 271 210" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
-        <rect x="111.39999999999999" y="190" width="225.20000000000002" height="16" rx="3" class="c-mask"/>
-        <text x="224" y="200" class="t-backend" font-size="9" text-anchor="middle">POST /chat/completions (text + image_url)</text>
-        <text x="189" y="228" class="t-dim" font-size="7">prompt theo camera.prompt_id, mặc định verify_prompt; ảnh base64 data URL; max_tokens=1000, timeout 120s</text>
+        <path d="M 177 228 L 271 228" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
+        <rect x="163.4" y="208" width="121.2" height="16" rx="3" class="c-mask"/>
+        <text x="224" y="218" class="t-backend" font-size="9" text-anchor="middle">frame.jpeg?src=camera</text>
 
-        <path d="M 271 244 L 177 244" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
-        <rect x="184.2" y="224" width="79.60000000000001" height="16" rx="3" class="c-mask"/>
-        <text x="224" y="234" class="t-security" font-size="9" text-anchor="middle">5xx / timeout</text>
+        <path d="M 271 262 L 177 262" class="a-default" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
+        <rect x="184.2" y="242" width="79.60000000000001" height="16" rx="3" class="c-mask"/>
+        <text x="224" y="252" class="t-muted" font-size="9" text-anchor="middle">JPEG snapshot</text>
 
-        <path d="M 177 284 L 379 284" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <rect x="217.4" y="264" width="121.2" height="16" rx="3" class="c-mask"/>
-        <text x="278" y="274" class="t-backend" font-size="9" text-anchor="middle">retry: fallback model</text>
+        <path d="M 177 302 L 379 302" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <rect x="207" y="282" width="142" height="16" rx="3" class="c-mask"/>
+        <text x="278" y="292" class="t-backend" font-size="9" text-anchor="middle">prompt theo profile + ảnh</text>
 
-        <path d="M 379 322 L 177 322" class="a-default" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
-        <rect x="240.8" y="302" width="74.4" height="16" rx="3" class="c-mask"/>
-        <text x="278" y="312" class="t-muted" font-size="9" text-anchor="middle">200: content</text>
+        <path d="M 379 340 L 177 340" class="a-default" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
+        <rect x="238.2" y="320" width="79.60000000000001" height="16" rx="3" class="c-mask"/>
+        <text x="278" y="330" class="t-muted" font-size="9" text-anchor="middle">analysis text</text>
 
-        <path d="M 177 374 L 487 374" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
-        <rect x="271.4" y="354" width="121.2" height="16" rx="3" class="c-mask"/>
-        <text x="332" y="364" class="t-backend" font-size="9" text-anchor="middle">response_ai_content()</text>
+        <path d="M 177 380 L 487 380" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
+        <rect x="281.8" y="360" width="100.4" height="16" rx="3" class="c-mask"/>
+        <text x="332" y="370" class="t-backend" font-size="9" text-anchor="middle">matched_keyword()</text>
 
-        <path d="M 487 426 L 177 426" class="a-default" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
-        <rect x="258.4" y="406" width="147.20000000000002" height="16" rx="3" class="c-mask"/>
-        <text x="332" y="416" class="t-muted" font-size="9" text-anchor="middle">(result, description, raw)</text>
+        <path d="M 487 414 L 177 414" class="a-default" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
+        <rect x="289.6" y="394" width="84.8" height="16" rx="3" class="c-mask"/>
+        <text x="332" y="404" class="t-muted" font-size="9" text-anchor="middle">keyword / rỗng</text>
 
-        <path d="M 163 470 L 69 470" class="a-default" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
-        <rect x="65.8" y="450" width="100.4" height="16" rx="3" class="c-mask"/>
-        <text x="116" y="460" class="t-muted" font-size="9" text-anchor="middle">EMERGENCY + mô tả</text>
+        <path d="M 177 454 L 595 454" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <rect x="328" y="434" width="116" height="16" rx="3" class="c-mask"/>
+        <text x="386" y="444" class="t-backend" font-size="9" text-anchor="middle">sendPhoto (nếu khớp)</text>
 
-        <path d="M 69 512 L 595 512" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <rect x="237.6" y="492" width="188.8" height="16" rx="3" class="c-mask"/>
-        <text x="332" y="502" class="t-backend" font-size="9" text-anchor="middle">sendPhoto (nếu quá alert_cooldown)</text>
+        <path d="M 595 490 L 177 490" class="a-default" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
+        <rect x="369" y="470" width="34" height="16" rx="3" class="c-mask"/>
+        <text x="386" y="480" class="t-muted" font-size="9" text-anchor="middle">ok</text>
 
-        <path d="M 595 548 L 69 548" class="a-default" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
-        <rect x="315" y="528" width="34" height="16" rx="3" class="c-mask"/>
-        <text x="332" y="538" class="t-muted" font-size="9" text-anchor="middle">ok</text>
+        <path d="M 177 528 L 703 528" class="a-dashed" stroke-width="1.4" marker-end="url(#arrowhead-dashed)"/>
+        <rect x="361.2" y="508" width="157.6" height="16" rx="3" class="c-mask"/>
+        <text x="440" y="518" class="t-messagebus" font-size="9" text-anchor="middle">record_event sent / no_match</text>
 
-        <path d="M 69 588 L 703 588" class="a-dashed" stroke-width="1.4" marker-end="url(#arrowhead-dashed)"/>
-        <rect x="289" y="568" width="194" height="16" rx="3" class="c-mask"/>
-        <text x="386" y="578" class="t-messagebus" font-size="9" text-anchor="middle">log_event(verified / telegram_sent)</text>
+        <path d="M 163 566 L 69 566" class="a-default" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
+        <rect x="50.19999999999999" y="546" width="131.60000000000002" height="16" rx="3" class="c-mask"/>
+        <text x="116" y="556" class="t-muted" font-size="9" text-anchor="middle">200 {matched, analysis}</text>
 
         <!-- Activations -->
-        <rect x="57" y="168" width="10" height="428" rx="3" class="c-mask"/>
-        <rect x="57" y="168" width="10" height="428" rx="3" class="c-backend" stroke-width="1"/>
-        <rect x="165" y="172" width="10" height="300" rx="3" class="c-mask"/>
-        <rect x="165" y="172" width="10" height="300" rx="3" class="c-backend" stroke-width="1"/>
-        <rect x="273" y="210" width="10" height="38" rx="3" class="c-mask"/>
-        <rect x="273" y="210" width="10" height="38" rx="3" class="c-cloud" stroke-width="1"/>
-        <rect x="381" y="284" width="10" height="42" rx="3" class="c-mask"/>
-        <rect x="381" y="284" width="10" height="42" rx="3" class="c-cloud" stroke-width="1"/>
-        <rect x="489" y="374" width="10" height="56" rx="3" class="c-mask"/>
-        <rect x="489" y="374" width="10" height="56" rx="3" class="c-backend" stroke-width="1"/>
-        <rect x="597" y="512" width="10" height="38" rx="3" class="c-mask"/>
-        <rect x="597" y="512" width="10" height="38" rx="3" class="c-cloud" stroke-width="1"/>
-        <rect x="705" y="584" width="10" height="12" rx="3" class="c-mask"/>
-        <rect x="705" y="584" width="10" height="12" rx="3" class="c-database" stroke-width="1"/>
+        <rect x="165" y="185" width="10" height="355" rx="3" class="c-mask"/>
+        <rect x="165" y="185" width="10" height="355" rx="3" class="c-backend" stroke-width="1"/>
+        <rect x="273" y="224" width="10" height="40" rx="3" class="c-mask"/>
+        <rect x="273" y="224" width="10" height="40" rx="3" class="c-cloud" stroke-width="1"/>
+        <rect x="381" y="298" width="10" height="44" rx="3" class="c-mask"/>
+        <rect x="381" y="298" width="10" height="44" rx="3" class="c-cloud" stroke-width="1"/>
+        <rect x="489" y="376" width="10" height="40" rx="3" class="c-mask"/>
+        <rect x="489" y="376" width="10" height="40" rx="3" class="c-backend" stroke-width="1"/>
+        <rect x="597" y="450" width="10" height="42" rx="3" class="c-mask"/>
+        <rect x="597" y="450" width="10" height="42" rx="3" class="c-cloud" stroke-width="1"/>
 
         <!-- Participants -->
         <rect x="19" y="72" width="86" height="54" rx="6" class="c-mask"/>
-        <rect x="19" y="72" width="86" height="54" rx="6" class="c-backend" stroke-width="1.5"/>
-        <text x="62" y="94" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Monitor Loop</text>
-        <text x="62" y="111" class="t-muted" font-size="7" text-anchor="middle">_monitor_loop</text>
+        <rect x="19" y="72" width="86" height="54" rx="6" class="c-external" stroke-width="1.5"/>
+        <text x="62" y="94" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">HA</text>
+        <text x="62" y="111" class="t-muted" font-size="7" text-anchor="middle">Home Assistant</text>
 
         <rect x="127" y="72" width="86" height="54" rx="6" class="c-mask"/>
         <rect x="127" y="72" width="86" height="54" rx="6" class="c-backend" stroke-width="1.5"/>
-        <text x="170" y="94" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">verify_scene</text>
-        <text x="170" y="111" class="t-muted" font-size="7" text-anchor="middle">ai.py</text>
+        <text x="170" y="94" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">/analyze</text>
+        <text x="170" y="111" class="t-muted" font-size="7" text-anchor="middle">FastAPI</text>
 
         <rect x="235" y="72" width="86" height="54" rx="6" class="c-mask"/>
         <rect x="235" y="72" width="86" height="54" rx="6" class="c-cloud" stroke-width="1.5"/>
-        <text x="278" y="94" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Vision Model</text>
-        <text x="278" y="111" class="t-muted" font-size="7" text-anchor="middle">vision_model</text>
+        <text x="278" y="94" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">go2rtc</text>
+        <text x="278" y="111" class="t-muted" font-size="7" text-anchor="middle">/ Frigate</text>
 
         <rect x="343" y="72" width="86" height="54" rx="6" class="c-mask"/>
         <rect x="343" y="72" width="86" height="54" rx="6" class="c-cloud" stroke-width="1.5"/>
-        <text x="386" y="94" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Fallback</text>
-        <text x="386" y="111" class="t-muted" font-size="7" text-anchor="middle">fallback_vision_model</text>
+        <text x="386" y="94" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Vision</text>
+        <text x="386" y="111" class="t-muted" font-size="7" text-anchor="middle">AI Vision API</text>
 
         <rect x="451" y="72" width="86" height="54" rx="6" class="c-mask"/>
         <rect x="451" y="72" width="86" height="54" rx="6" class="c-backend" stroke-width="1.5"/>
-        <text x="494" y="94" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Parser</text>
-        <text x="494" y="111" class="t-muted" font-size="7" text-anchor="middle">verdict + thinking</text>
+        <text x="494" y="94" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">keyword</text>
+        <text x="494" y="111" class="t-muted" font-size="7" text-anchor="middle">regex match</text>
 
         <rect x="559" y="72" width="86" height="54" rx="6" class="c-mask"/>
         <rect x="559" y="72" width="86" height="54" rx="6" class="c-cloud" stroke-width="1.5"/>
@@ -641,19 +637,19 @@
 
         <rect x="667" y="72" width="86" height="54" rx="6" class="c-mask"/>
         <rect x="667" y="72" width="86" height="54" rx="6" class="c-database" stroke-width="1.5"/>
-        <text x="710" y="94" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">SQLite</text>
-        <text x="710" y="111" class="t-muted" font-size="7" text-anchor="middle">log_event</text>
+        <text x="710" y="94" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">events</text>
+        <text x="710" y="111" class="t-muted" font-size="7" text-anchor="middle">events.jsonl</text>
 
         <!-- Legend -->
-        <text x="150" y="646" class="t-primary" font-size="10" font-weight="600">Legend</text>
-        <path d="M 150 666 L 184 666" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <text x="193" y="669" class="t-muted" font-size="8">request</text>
-        <path d="M 270 666 L 304 666" class="a-default" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
-        <text x="313" y="669" class="t-muted" font-size="8">return</text>
-        <path d="M 385 666 L 419 666" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
-        <text x="428" y="669" class="t-muted" font-size="8">security</text>
-        <path d="M 530 666 L 564 666" class="a-dashed" stroke-width="1.4" marker-end="url(#arrowhead-dashed)"/>
-        <text x="573" y="669" class="t-muted" font-size="8">async trace</text>
+        <text x="150" y="626" class="t-primary" font-size="10" font-weight="600">Legend</text>
+        <path d="M 150 646 L 184 646" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <text x="193" y="649" class="t-muted" font-size="8">request</text>
+        <path d="M 270 646 L 304 646" class="a-default" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
+        <text x="313" y="649" class="t-muted" font-size="8">return</text>
+        <path d="M 385 646 L 419 646" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
+        <text x="428" y="649" class="t-muted" font-size="8">security</text>
+        <path d="M 530 646 L 564 646" class="a-dashed" stroke-width="1.4" marker-end="url(#arrowhead-dashed)"/>
+        <text x="573" y="649" class="t-muted" font-size="8">async trace</text>
       </svg>
     </div>
 
@@ -662,36 +658,36 @@
       <div class="card">
         <div class="card-header">
           <div class="card-dot cyan"></div>
-          <h3>Chọn prompt &amp; model</h3>
+          <h3>Nguồn ảnh dự phòng</h3>
         </div>
         <ul>
-          <li>&bull; prompt lấy theo camera.prompt_id, nếu không có dùng verify_prompt chung</li>
-          <li>&bull; Ảnh mã hoá base64 data URL đính kèm image_url</li>
-          <li>&bull; max_tokens=1000, stream=false, timeout=120s</li>
+          <li>&bull; Ưu tiên go2rtc /api/frame.jpeg</li>
+          <li>&bull; Tự dò Frigate go2rtc / latest.jpg khi thiếu URL</li>
+          <li>&bull; Khám phá add-on Frigate qua Supervisor token</li>
         </ul>
       </div>
 
       <div class="card">
         <div class="card-header">
-          <div class="card-dot rose"></div>
-          <h3>Fallback tự động</h3>
+          <div class="card-dot violet"></div>
+          <h3>Khác biệt với Fall Detection</h3>
         </div>
         <ul>
-          <li>&bull; Lỗi RuntimeError (HTTP/timeout) ở model chính → thử fallback_vision_model</li>
-          <li>&bull; Chỉ fallback khi có cấu hình và khác model chính</li>
-          <li>&bull; 3 lần lỗi liên tiếp → tạm ngưng gọi AI (backoff) + cảnh báo Telegram</li>
+          <li>&bull; Không YOLO, không vòng lặp — HA tự quyết khi gọi</li>
+          <li>&bull; Phân loại bằng keyword regex thay vì SAFE/EMERGENCY</li>
+          <li>&bull; Prompt profile gắn theo từng camera</li>
         </ul>
       </div>
 
       <div class="card">
         <div class="card-header">
           <div class="card-dot emerald"></div>
-          <h3>Parse verdict bền bỉ</h3>
+          <h3>Kết quả</h3>
         </div>
         <ul>
-          <li>&bull; Đọc được SSE, JSON nối, hoặc JSON thường</li>
-          <li>&bull; strip_thinking_content() bỏ &lt;think&gt;…&lt;/think&gt;</li>
-          <li>&bull; Dòng 1 = SAFE/EMERGENCY, dòng 2 = mô tả ngắn (≤100 ký tự)</li>
+          <li>&bull; Khớp keyword → gửi Telegram + ghi &#39;sent&#39;</li>
+          <li>&bull; Không khớp → chỉ ghi &#39;no_match&#39;</li>
+          <li>&bull; Mọi lỗi đều ghi event log riêng để soi</li>
         </ul>
       </div>
     </div>

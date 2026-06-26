@@ -1,12 +1,16 @@
 {
   "title": "DCNET Camera AI — Luồng hoạt động hệ thống",
-  "subtitle": "Fall Detection Web · sơ đồ kiến trúc & luồng AI",
-  "lede": "Bộ sơ đồ phân tích chi tiết luồng hoạt động của hệ thống giám sát camera AI (<code>fall_detection_web</code>): từ thu nhận khung hình, phát hiện người bằng YOLO, đến xác minh bằng AI Vision, cảnh báo và lưu trữ. Hai sơ đồ cuối là <b>phần chuyên sâu dành riêng cho luồng hoạt động của AI</b>.",
+  "subtitle": "Bộ sơ đồ đầy đủ: kiến trúc, vận hành, AI và lưu trữ",
+  "lede": "Bộ sơ đồ hợp nhất mô tả toàn bộ nghiệp vụ của hệ thống giám sát camera AI: <code>fall_detection_web</code> (YOLO + AI Vision + ghi hình) và add-on <code>simple_ai_vision</code>. Nhóm <b>AI</b> được tách chuyên sâu thành 3 sơ đồ (trình tự, luồng dữ liệu, cơ chế chịu lỗi).",
   "diagrams": [
-    { "file": "system-architecture.html", "title": "Kiến trúc hệ thống", "kind": "architecture", "accent": "primary", "desc": "Toàn cảnh thành phần: Camera → go2rtc → Monitor/YOLO/AI Client → AI Vision, Telegram, Teldrive, SQLite, Redis." },
-    { "file": "operational-workflow.html", "title": "Luồng vận hành Monitor", "kind": "workflow", "accent": "secondary", "desc": "Vòng lặp giám sát theo swimlane: capture → YOLO → verify → verdict → cảnh báo, ghi clip và timeline." },
-    { "file": "ai-verification-sequence.html", "title": "🤖 Luồng AI · verify_scene", "kind": "sequence", "accent": "violet", "desc": "Trình tự gọi Vision API theo thời gian: model chính, tự fallback khi lỗi, parse verdict rồi cảnh báo + log." },
-    { "file": "ai-data-pipeline.html", "title": "🤖 Luồng AI · dữ liệu", "kind": "dataflow", "accent": "accent", "desc": "Đường đi dữ liệu AI: mã hoá ảnh + prompt → Vision API → parse phản hồi (SSE/JSON/think) → SAFE/EMERGENCY." }
+    { "file": "system-architecture.html", "title": "1 · Kiến trúc hệ thống", "kind": "architecture", "accent": "primary", "desc": "Toàn cảnh: Camera → go2rtc → Capture/Monitor/YOLO/AI Client → AI Vision, Telegram, Teldrive, SQLite, Redis; kèm add-on Simple AI Vision." },
+    { "file": "operational-workflow.html", "title": "2 · Luồng vận hành Monitor", "kind": "workflow", "accent": "secondary", "desc": "Swimlane vòng lặp giám sát: capture → YOLO → verify → verdict → cảnh báo/ghi clip/timeline; loop khi không có người, SAFE chỉ log." },
+    { "file": "ai-verification-sequence.html", "title": "3 · 🤖 AI · verify_scene", "kind": "sequence", "accent": "violet", "desc": "Trình tự gọi Vision API: model chính → tự fallback khi lỗi → parse verdict → cảnh báo + log; prompt chọn theo camera." },
+    { "file": "ai-data-pipeline.html", "title": "4 · 🤖 AI · luồng dữ liệu", "kind": "dataflow", "accent": "accent", "desc": "Đường đi dữ liệu: ảnh + prompt → Vision/fallback → parse SSE/JSON/think → SAFE/EMERGENCY → Telegram + log_event." },
+    { "file": "ai-fault-tolerance.html", "title": "5 · 🤖 AI · cơ chế chịu lỗi", "kind": "lifecycle", "accent": "accent", "desc": "Circuit breaker: lỗi AI Cloud/Teldrive liên tiếp ≥3 → backoff 60→3600s + cảnh báo Telegram, tự hồi phục." },
+    { "file": "recording-storage.html", "title": "6 · Ghi hình & lưu trữ Teldrive", "kind": "workflow", "accent": "secondary", "desc": "Quay clip go2rtc/OpenCV → upload Teldrive → bảo trì/retry clip lỗi → dọn local; đồng bộ thumbnail." },
+    { "file": "simple-ai-vision.html", "title": "7 · Add-on Simple AI Vision", "kind": "sequence", "accent": "primary", "desc": "Trình tự /analyze: Home Assistant trigger → snapshot → AI Vision → keyword regex → Telegram; không YOLO, không vòng lặp." },
+    { "file": "data-model.html", "title": "8 · Mô hình dữ liệu SQLite", "kind": "erd", "accent": "primary", "desc": "Bảng events (trường AI + Teldrive), users (bcrypt), settings (key/value)." }
   ],
-  "footer": "Sinh bằng skill <b>dcnet-diagram</b>. Sửa JSON-IR trong <code>src/</code> rồi chạy lại renderer để cập nhật."
+  "footer": "Sinh bằng skill <b>dcnet-diagram</b>. Sửa JSON-IR trong <code>src/</code> rồi chạy lại renderer + build_gallery để cập nhật."
 }

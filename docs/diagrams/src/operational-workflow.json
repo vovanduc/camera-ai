@@ -39,8 +39,8 @@
     { "from": "record", "to": "teldrive", "label": "upload", "variant": "dashed", "fromSide": "bottom", "toSide": "top", "route": "drop", "labelAt": [575, 538] }
   ],
   "cards": [
-    { "dot": "cyan", "title": "Vòng lặp giám sát", "items": ["Mỗi camera 1 Capture Thread; Monitor đọc frame mới qua seq", "frame_skip giảm tải: chỉ chạy YOLO 1/N khung hình", "loop_sleep nhịp lại giữa các vòng quét"] },
-    { "dot": "emerald", "title": "Điều kiện gọi AI", "items": ["Chỉ verify khi YOLO thấy person (class 0)", "Phải quá verify_interval kể từ lần verify trước", "Verdict EMERGENCY mới kích hoạt cảnh báo"] },
-    { "dot": "rose", "title": "Cảnh báo & lưu vết", "items": ["Telegram chỉ gửi khi quá alert_cooldown (chống spam)", "Ghi clip chạy thread riêng, copy-codec để nhẹ CPU", "Mọi giai đoạn đều log_event vào SQLite"] }
+    { "dot": "cyan", "title": "Vòng lặp giám sát", "items": ["Mỗi camera 1 Capture Thread; Monitor đọc frame mới qua seq", "frame_skip giảm tải: chỉ chạy YOLO 1/N khung hình", "Không có person → bỏ qua, vòng lặp tiếp tục (loop_sleep)"] },
+    { "dot": "emerald", "title": "Điều kiện gọi AI", "items": ["Chỉ verify khi YOLO thấy person (class 0)", "Phải quá verify_interval kể từ lần verify trước", "EMERGENCY → cảnh báo; SAFE → chỉ log_event, không gửi TG"] },
+    { "dot": "rose", "title": "Cảnh báo & lưu vết", "items": ["Telegram chỉ gửi khi quá alert_cooldown (chống spam)", "telegram_sent cũng được ghi vào timeline", "Ghi clip chạy thread riêng, copy-codec để nhẹ CPU", "AI/upload lỗi liên tiếp → backoff (xem sơ đồ chịu lỗi)"] }
   ]
 }

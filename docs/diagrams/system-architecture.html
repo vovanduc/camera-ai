@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="generator" content="archify 2.6.0">
-  <title>Kiến trúc hệ thống — Fall Detection Web Diagram</title>
+  <title>Kiến trúc hệ thống — DCNET Camera AI Diagram</title>
   <script>
     // Resolve the theme before first paint so light-preference users don't
     // see a dark flash. The toolbar script below re-applies with UI state.
@@ -494,14 +494,14 @@
     <div class="header">
       <div class="header-row">
         <div class="pulse-dot"></div>
-        <h1>Kiến trúc hệ thống — Fall Detection Web</h1>
+        <h1>Kiến trúc hệ thống — DCNET Camera AI</h1>
       </div>
-      <p class="subtitle">Camera → go2rtc → YOLO + AI Vision → cảnh báo &amp; lưu trữ</p>
+      <p class="subtitle">Fall Detection Web (YOLO + AI Vision) và add-on Simple AI Vision dùng chung dịch vụ</p>
     </div>
 
     <!-- Main Diagram -->
     <div class="diagram-container">
-      <svg viewBox="0 0 1200 660" role="img" aria-label="Kiến trúc hệ thống — Fall Detection Web — Camera → go2rtc → YOLO + AI Vision → cảnh báo &amp; lưu trữ (architecture diagram)">
+      <svg viewBox="0 0 1200 780" role="img" aria-label="Kiến trúc hệ thống — DCNET Camera AI — Fall Detection Web (YOLO + AI Vision) và add-on Simple AI Vision dùng chung dịch vụ (architecture diagram)">
         <!-- Definitions -->
         <defs>
           <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
@@ -534,6 +534,9 @@
         <rect x="960" y="170" width="220" height="360" rx="12" class="c-region" stroke-width="1"/>
         <text x="968" y="188" class="t-cloud" font-size="9" font-weight="600">Cloud · dịch vụ ngoài</text>
 
+        <rect x="10" y="590" width="560" height="110" rx="12" class="c-region" stroke-width="1"/>
+        <text x="18" y="608" class="t-cloud" font-size="9" font-weight="600">Home Assistant Add-on · simple_ai_vision</text>
+
         <!-- Connection paths (before components for correct z-order) -->
         <path d="M 160 332 L 210 330" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path d="M 270 360 L 317 360 Q 325 360 325 368 L 325 462 Q 325 470 333 470 L 380 470" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
@@ -547,6 +550,10 @@
         <path d="M 455 354 L 714.5 354 Q 722.5 354 722.5 362 L 722.5 472 Q 722.5 480 730.5 480 L 990 480" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
         <path d="M 530 180 L 684.5 180 Q 692.5 180 692.5 188 L 692.5 432 Q 692.5 440 700.5 440 L 855 440" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path d="M 455 210 L 547 210 Q 555 210 555 218 L 555 432 Q 555 440 563 440 L 655 440" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
+        <path d="M 170 650 L 380 650" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path d="M 460 620 L 373 620 Q 365 620 365 612 L 365 368 Q 365 360 357 360 L 270 360" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
+        <path d="M 540 650 L 797 650 Q 805 650 805 642 L 805 274 Q 805 266 813 266 L 1070 266" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
+        <path d="M 540 650 L 797 650 Q 805 650 805 642 L 805 398 Q 805 390 813 390 L 1070 390" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
 
         <!-- Components -->
         <rect x="40" y="300" width="120" height="64" rx="6" class="c-mask"/>
@@ -614,6 +621,17 @@
         <text x="1070" y="494" class="t-muted" font-size="9" text-anchor="middle">Telegram VFS</text>
         <text x="1070" y="502" class="t-cloud" font-size="7" text-anchor="middle">Static API Key</text>
 
+        <rect x="40" y="620" width="130" height="60" rx="6" class="c-mask"/>
+        <rect x="40" y="620" width="130" height="60" rx="6" class="c-external" stroke-width="1.5"/>
+        <text x="105" y="648" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Home Assistant</text>
+        <text x="105" y="664" class="t-muted" font-size="9" text-anchor="middle">automation</text>
+
+        <rect x="380" y="620" width="160" height="60" rx="6" class="c-mask"/>
+        <rect x="380" y="620" width="160" height="60" rx="6" class="c-backend" stroke-width="1.5"/>
+        <text x="460" y="648" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Simple AI Vision</text>
+        <text x="460" y="664" class="t-muted" font-size="9" text-anchor="middle">/analyze :8000</text>
+        <text x="460" y="672" class="t-backend" font-size="7" text-anchor="middle">keyword match</text>
+
         <!-- Connection labels -->
         <rect x="170" y="312" width="30" height="14" rx="3" class="c-mask"/>
         <text x="185" y="322" class="t-muted" font-size="8" text-anchor="middle">RTSP</text>
@@ -639,19 +657,27 @@
         <text x="620" y="250" class="t-muted" font-size="8" text-anchor="middle">API query</text>
         <rect x="526" y="352" width="58" height="14" rx="3" class="c-mask"/>
         <text x="555" y="362" class="t-messagebus" font-size="8" text-anchor="middle">cache read</text>
+        <rect x="238.8" y="630" width="72.4" height="14" rx="3" class="c-mask"/>
+        <text x="275" y="640" class="t-backend" font-size="8" text-anchor="middle">POST /analyze</text>
+        <rect x="275.8" y="490" width="48.4" height="14" rx="3" class="c-mask"/>
+        <text x="300" y="500" class="t-messagebus" font-size="8" text-anchor="middle">snapshot</text>
+        <rect x="608.6" y="690" width="62.8" height="14" rx="3" class="c-mask"/>
+        <text x="640" y="700" class="t-messagebus" font-size="8" text-anchor="middle">analyze ảnh</text>
+        <rect x="843.4" y="690" width="53.199999999999996" height="14" rx="3" class="c-mask"/>
+        <text x="870" y="700" class="t-messagebus" font-size="8" text-anchor="middle">sendPhoto</text>
 
         <!-- Legend -->
-        <text x="40" y="631" class="t-primary" font-size="9" font-weight="600">Legend</text>
-        <rect x="40" y="636" width="14" height="9" rx="2" class="c-external" stroke-width="1"/>
-        <text x="60" y="644" class="t-muted" font-size="8">External</text>
-        <rect x="138" y="636" width="14" height="9" rx="2" class="c-cloud" stroke-width="1"/>
-        <text x="158" y="644" class="t-muted" font-size="8">Cloud</text>
-        <rect x="221" y="636" width="14" height="9" rx="2" class="c-frontend" stroke-width="1"/>
-        <text x="241" y="644" class="t-muted" font-size="8">Frontend</text>
-        <rect x="319" y="636" width="14" height="9" rx="2" class="c-backend" stroke-width="1"/>
-        <text x="339" y="644" class="t-muted" font-size="8">Backend</text>
-        <rect x="412" y="636" width="14" height="9" rx="2" class="c-database" stroke-width="1"/>
-        <text x="432" y="644" class="t-muted" font-size="8">Database</text>
+        <text x="40" y="751" class="t-primary" font-size="9" font-weight="600">Legend</text>
+        <rect x="40" y="756" width="14" height="9" rx="2" class="c-external" stroke-width="1"/>
+        <text x="60" y="764" class="t-muted" font-size="8">External</text>
+        <rect x="138" y="756" width="14" height="9" rx="2" class="c-cloud" stroke-width="1"/>
+        <text x="158" y="764" class="t-muted" font-size="8">Cloud</text>
+        <rect x="221" y="756" width="14" height="9" rx="2" class="c-frontend" stroke-width="1"/>
+        <text x="241" y="764" class="t-muted" font-size="8">Frontend</text>
+        <rect x="319" y="756" width="14" height="9" rx="2" class="c-backend" stroke-width="1"/>
+        <text x="339" y="764" class="t-muted" font-size="8">Backend</text>
+        <rect x="412" y="756" width="14" height="9" rx="2" class="c-database" stroke-width="1"/>
+        <text x="432" y="764" class="t-muted" font-size="8">Database</text>
       </svg>
     </div>
 
@@ -691,6 +717,19 @@
           <li>&bull; log_event ghi vào SQLite (events/recordings)</li>
           <li>&bull; Teldrive lưu clip + thumbnail lên Telegram VFS</li>
           <li>&bull; Redis là cache fail-open, hỏng vẫn không vỡ request</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-dot violet"></div>
+          <h3>Add-on Simple AI Vision</h3>
+        </div>
+        <ul>
+          <li>&bull; Chạy trên Home Assistant, không YOLO/không vòng lặp</li>
+          <li>&bull; HA Automation gọi POST /analyze khi có trigger</li>
+          <li>&bull; Dùng chung go2rtc, AI Vision API và Telegram</li>
+          <li>&bull; Phân loại bằng keyword regex (xem sơ đồ Simple AI Vision)</li>
         </ul>
       </div>
     </div>

@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "AI LLM — Cơ chế chịu lỗi (circuit breaker)",
+    "subtitle": "Backoff khi AI Cloud / Teldrive lỗi liên tiếp + cảnh báo và tự hồi phục",
+    "output": "ai-fault-tolerance.html",
+    "viewBox": [900, 580]
+  },
+  "lanes": [
+    { "id": "main", "label": "Trạng thái dịch vụ" },
+    { "id": "recovery", "label": "Tạm ngưng & hồi phục" }
+  ],
+  "states": [
+    { "id": "normal", "type": "active", "label": "Bình thường", "sublabel": "suspended = false", "lane": "main", "col": 0, "step": "01" },
+    { "id": "calling", "type": "active", "label": "Gọi AI / Upload", "sublabel": "verify_scene / upload", "lane": "main", "col": 1, "step": "02" },
+    { "id": "check", "type": "decision", "label": "Thành công?", "lane": "main", "col": 2, "step": "03" },
+    { "id": "ok", "type": "success", "label": "OK", "sublabel": "reset failures = 0", "lane": "main", "col": 3, "step": "04", "tag": "hồi phục → TG" },
+    { "id": "susp", "type": "waiting", "label": "Tạm ngưng", "sublabel": "backoff + cảnh báo TG", "lane": "recovery", "col": 1, "width": 160 }
+  ],
+  "transitions": [
+    { "from": "normal", "to": "calling" },
+    { "from": "calling", "to": "check" },
+    { "from": "check", "to": "ok", "label": "thành công", "labelDy": -24 },
+    { "from": "ok", "to": "normal", "label": "tiếp tục giám sát", "variant": "default", "fromSide": "top", "toSide": "top", "route": "top-channel" },
+    { "from": "check", "to": "susp", "label": "≥ 3 lỗi liên tiếp", "variant": "security", "fromSide": "bottom", "toSide": "right", "route": "right-channel", "channelX": 760, "labelSegment": 1 },
+    { "from": "susp", "to": "calling", "label": "hết backoff → retry", "variant": "dashed", "fromSide": "left", "toSide": "bottom", "route": "left-channel", "channelX": 150, "labelSegment": 1 }
+  ],
+  "cards": [
+    { "dot": "amber", "title": "Thang backoff", "items": ["< 3 lỗi: thử lại ngay, AI coi như SAFE", "≤ 3 lỗi: 60s", "4 lỗi: 300s (5 phút)", "5 lỗi: 900s (15 phút)", "≥ 6 lỗi: 3600s (1 giờ)"] },
+    { "dot": "rose", "title": "Cảnh báo người dùng", "items": ["Khi bị tạm ngưng: gửi Telegram báo lỗi + giờ thử lại", "Trong lúc ngưng: AI trả mặc định SAFE, không gọi cloud", "Áp dụng riêng cho AI (ai_suspended) và upload (upload_suspended)"] },
+    { "dot": "emerald", "title": "Tự hồi phục", "items": ["Một lần gọi thành công → reset failures", "Nếu trước đó đang ngưng → gửi Telegram báo khôi phục", "Không cần can thiệp thủ công"] }
+  ]
+}

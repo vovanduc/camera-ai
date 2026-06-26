@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Simple AI Vision — Luồng /analyze",
+    "subtitle": "Home Assistant trigger → snapshot → AI Vision → keyword match → Telegram",
+    "output": "simple-ai-vision.html",
+    "viewBox": [880, 700]
+  },
+  "participants": [
+    { "id": "ha", "type": "external", "label": "HA", "sublabel": "Home Assistant" },
+    { "id": "api", "type": "backend", "label": "/analyze", "sublabel": "FastAPI" },
+    { "id": "go2rtc", "type": "cloud", "label": "go2rtc", "sublabel": "/ Frigate" },
+    { "id": "vision", "type": "cloud", "label": "Vision", "sublabel": "AI Vision API" },
+    { "id": "kw", "type": "backend", "label": "keyword", "sublabel": "regex match" },
+    { "id": "telegram", "type": "cloud", "label": "Telegram", "sublabel": "sendPhoto" },
+    { "id": "log", "type": "database", "label": "events", "sublabel": "events.jsonl" }
+  ],
+  "segments": [
+    { "from": 168, "to": 276, "label": "Snapshot" },
+    { "from": 290, "to": 352, "label": "Phân tích AI" },
+    { "from": 366, "to": 502, "label": "Khớp keyword & gửi" },
+    { "from": 516, "to": 580, "label": "Ghi log + trả về" }
+  ],
+  "messages": [
+    { "from": "ha", "to": "api", "y": 185, "label": "POST /analyze {camera}", "variant": "emphasis", "note": "bỏ qua nếu camera không cấu hình / bị tắt" },
+    { "from": "api", "to": "go2rtc", "y": 228, "label": "frame.jpeg?src=camera", "variant": "default" },
+    { "from": "go2rtc", "to": "api", "y": 262, "label": "JPEG snapshot", "variant": "return" },
+    { "from": "api", "to": "vision", "y": 302, "label": "prompt theo profile + ảnh", "variant": "emphasis" },
+    { "from": "vision", "to": "api", "y": 340, "label": "analysis text", "variant": "return" },
+    { "from": "api", "to": "kw", "y": 380, "label": "matched_keyword()", "variant": "default" },
+    { "from": "kw", "to": "api", "y": 414, "label": "keyword / rỗng", "variant": "return" },
+    { "from": "api", "to": "telegram", "y": 454, "label": "sendPhoto (nếu khớp)", "variant": "emphasis" },
+    { "from": "telegram", "to": "api", "y": 490, "label": "ok", "variant": "return" },
+    { "from": "api", "to": "log", "y": 528, "label": "record_event sent / no_match", "variant": "dashed" },
+    { "from": "api", "to": "ha", "y": 566, "label": "200 {matched, analysis}", "variant": "return" }
+  ],
+  "activations": [
+    { "participant": "api", "from": 185, "to": 540, "type": "backend" },
+    { "participant": "go2rtc", "from": 224, "to": 264, "type": "cloud" },
+    { "participant": "vision", "from": 298, "to": 342, "type": "cloud" },
+    { "participant": "kw", "from": 376, "to": 416, "type": "backend" },
+    { "participant": "telegram", "from": 450, "to": 492, "type": "cloud" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Nguồn ảnh dự phòng", "items": ["Ưu tiên go2rtc /api/frame.jpeg", "Tự dò Frigate go2rtc / latest.jpg khi thiếu URL", "Khám phá add-on Frigate qua Supervisor token"] },
+    { "dot": "violet", "title": "Khác biệt với Fall Detection", "items": ["Không YOLO, không vòng lặp — HA tự quyết khi gọi", "Phân loại bằng keyword regex thay vì SAFE/EMERGENCY", "Prompt profile gắn theo từng camera"] },
+    { "dot": "emerald", "title": "Kết quả", "items": ["Khớp keyword → gửi Telegram + ghi 'sent'", "Không khớp → chỉ ghi 'no_match'", "Mọi lỗi đều ghi event log riêng để soi"] }
+  ]
+}

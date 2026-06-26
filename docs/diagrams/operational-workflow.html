@@ -651,7 +651,7 @@
         <ul>
           <li>&bull; Mỗi camera 1 Capture Thread; Monitor đọc frame mới qua seq</li>
           <li>&bull; frame_skip giảm tải: chỉ chạy YOLO 1/N khung hình</li>
-          <li>&bull; loop_sleep nhịp lại giữa các vòng quét</li>
+          <li>&bull; Không có person → bỏ qua, vòng lặp tiếp tục (loop_sleep)</li>
         </ul>
       </div>
 
@@ -663,7 +663,7 @@
         <ul>
           <li>&bull; Chỉ verify khi YOLO thấy person (class 0)</li>
           <li>&bull; Phải quá verify_interval kể từ lần verify trước</li>
-          <li>&bull; Verdict EMERGENCY mới kích hoạt cảnh báo</li>
+          <li>&bull; EMERGENCY → cảnh báo; SAFE → chỉ log_event, không gửi TG</li>
         </ul>
       </div>
 
@@ -674,8 +674,9 @@
         </div>
         <ul>
           <li>&bull; Telegram chỉ gửi khi quá alert_cooldown (chống spam)</li>
+          <li>&bull; telegram_sent cũng được ghi vào timeline</li>
           <li>&bull; Ghi clip chạy thread riêng, copy-codec để nhẹ CPU</li>
-          <li>&bull; Mọi giai đoạn đều log_event vào SQLite</li>
+          <li>&bull; AI/upload lỗi liên tiếp → backoff (xem sơ đồ chịu lỗi)</li>
         </ul>
       </div>
     </div>

@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Mô hình dữ liệu — SQLite (Fall Detection Web)</title>
+<style>
+  :root{ --blue:primary; }
+  [data-theme="dark"]{ --pg:#0b1220; --pgfg:#e6edf7; --pgdim:#93a4c0; --bd:#233252; --pn:#14213a; }
+  [data-theme="light"]{ --pg:#f5f8fd; --pgfg:#0F172A; --pgdim:#5b6b85; --bd:#dde6f2; --pn:#fff; }
+  *{box-sizing:border-box;} html,body{margin:0;}
+  body{ background:var(--pg); color:var(--pgfg); font-family:"Be Vietnam Pro", Inter, system-ui, sans-serif; -webkit-font-smoothing:antialiased; }
+  header{ display:flex; align-items:center; gap:14px; padding:16px 24px; border-bottom:1px solid var(--bd); }
+  h1{ font-size:17px; margin:0; font-weight:700; }
+  header small{ color:var(--pgdim); display:block; font-weight:400; font-size:12.5px; }
+  .sp{ flex:1; }
+  button{ font-family:inherit; font-size:13px; border:1px solid var(--bd); background:var(--pn); color:var(--pgfg); border-radius:8px; padding:7px 13px; cursor:pointer; }
+  button:hover{ border-color:var(--blue); }
+  .wrap{ padding:20px 24px 48px; }
+  svg{ width:100%; height:auto; max-width:900px; display:block; margin:0 auto; border:1px solid var(--bd); border-radius:12px; }
+</style>
+</head>
+<body>
+<header>
+  <div><h1>Mô hình dữ liệu — SQLite (Fall Detection Web)<small>events · users · settings</small></h1></div>
+  <div class="sp"></div>
+  <button id="tg">◐ Theme</button>
+  <button id="dl">⬇ SVG</button>
+  <button id="pn">⬇ PNG</button>
+</header>
+<div class="wrap">
+<svg id="diagram" viewBox="0 0 900 600" xmlns="http://www.w3.org/2000/svg" font-size="12">
+  <style>
+  svg { --bg:#0b1220; --panel:#14213a; --panel-2:#1b2c4a; --border:#2c3f63;
+        --text:#e6edf7; --muted:#93a4c0; --blue:#1463E6; --teal:#0DA5A0;
+        --coral:#FF5B6E; --violet:#8B5CF6; --rel:#6e86b3; font-family:"Be Vietnam Pro", Inter, system-ui, sans-serif; }
+  @media (prefers-color-scheme: light){
+    svg:not([data-theme]){ --bg:#f5f8fd; --panel:#ffffff; --panel-2:#eef3fb; --border:#cdd9ec;
+        --text:#0F172A; --muted:#5b6b85; --rel:#7f93b8; }
+  }
+  svg[data-theme="light"]{ --bg:#f5f8fd; --panel:#ffffff; --panel-2:#eef3fb; --border:#cdd9ec;
+        --text:#0F172A; --muted:#5b6b85; --rel:#7f93b8; }
+  svg[data-theme="dark"]{ --bg:#0b1220; --panel:#14213a; --panel-2:#1b2c4a; --border:#2c3f63;
+        --text:#e6edf7; --muted:#93a4c0; --rel:#6e86b3; }
+  .bg{ fill:var(--bg); }
+  .box{ fill:var(--panel); stroke:var(--border); stroke-width:1.5; }
+  .box-2{ fill:var(--panel-2); }
+  .sep{ stroke:var(--border); stroke-width:1; }
+  .t{ fill:var(--text); }
+  .t-dim{ fill:var(--muted); }
+  .head-t{ fill:#ffffff; font-weight:700; }
+  .rel{ stroke:var(--rel); stroke-width:1.6; fill:none; }
+  .rel-t{ fill:var(--muted); }
+</style>
+  <defs></defs>
+  <rect class="bg" x="0" y="0" width="900" height="600"/>
+  
+  <g>
+    <rect class="box" x="40" y="40" width="210" height="432" rx="8"/>
+    <path class="box-2" d="M40,70 v-22 a8,8 0 0 1 8,-8 h194 a8,8 0 0 1 8,8 v22 Z" fill="var(--blue)"/>
+    <text x="52" y="60" class="head-t">events</text>
+    <text x="52" y="85" class="t"><tspan class="t" font-weight="700">PK </tspan><tspan class="t">id</tspan><tspan class="t-dim"> : INTEGER</tspan></text>
+    <line class="sep" x1="40" y1="92" x2="250" y2="92"/>
+    <text x="52" y="107" class="t"><tspan class="t">time</tspan><tspan class="t-dim"> : TEXT</tspan></text>
+    <line class="sep" x1="40" y1="114" x2="250" y2="114"/>
+    <text x="52" y="129" class="t"><tspan class="t">time_local</tspan><tspan class="t-dim"> : TEXT</tspan></text>
+    <line class="sep" x1="40" y1="136" x2="250" y2="136"/>
+    <text x="52" y="151" class="t"><tspan class="t">status</tspan><tspan class="t-dim"> : TEXT</tspan></text>
+    <line class="sep" x1="40" y1="158" x2="250" y2="158"/>
+    <text x="52" y="173" class="t"><tspan class="t">camera</tspan><tspan class="t-dim"> : TEXT</tspan></text>
+    <line class="sep" x1="40" y1="180" x2="250" y2="180"/>
+    <text x="52" y="195" class="t"><tspan class="t">confidence</tspan><tspan class="t-dim"> : REAL</tspan></text>
+    <line class="sep" x1="40" y1="202" x2="250" y2="202"/>
+    <text x="52" y="217" class="t"><tspan class="t">ai_result</tspan><tspan class="t-dim"> : TEXT</tspan></text>
+    <line class="sep" x1="40" y1="224" x2="250" y2="224"/>
+    <text x="52" y="239" class="t"><tspan class="t">ai_raw</tspan><tspan class="t-dim"> : TEXT</tspan></text>
+    <line class="sep" x1="40" y1="246" x2="250" y2="246"/>
+    <text x="52" y="261" class="t"><tspan class="t">ai_response</tspan><tspan class="t-dim"> : TEXT</tspan></text>
+    <line class="sep" x1="40" y1="268" x2="250" y2="268"/>
+    <text x="52" y="283" class="t"><tspan class="t">message</tspan><tspan class="t-dim"> : TEXT</tspan></text>
+    <line class="sep" x1="40" y1="290" x2="250" y2="290"/>
+    <text x="52" y="305" class="t"><tspan class="t">error</tspan><tspan class="t-dim"> : TEXT</tspan></text>
+    <line class="sep" x1="40" y1="312" x2="250" y2="312"/>
+    <text x="52" y="327" class="t"><tspan class="t">image_file</tspan><tspan class="t-dim"> : TEXT</tspan></text>
+    <line class="sep" x1="40" y1="334" x2="250" y2="334"/>
+    <text x="52" y="349" class="t"><tspan class="t">teldrive_image_id</tspan><tspan class="t-dim"> : TEXT</tspan></text>
+    <line class="sep" x1="40" y1="356" x2="250" y2="356"/>
+    <text x="52" y="371" class="t"><tspan class="t">teldrive_image_name</tspan><tspan class="t-dim"> : TEXT</tspan></text>
+    <line class="sep" x1="40" y1="378" x2="250" y2="378"/>
+    <text x="52" y="393" class="t"><tspan class="t">teldrive_image_path</tspan><tspan class="t-dim"> : TEXT</tspan></text>
+    <line class="sep" x1="40" y1="400" x2="250" y2="400"/>
+    <text x="52" y="415" class="t"><tspan class="t">teldrive_video_id</tspan><tspan class="t-dim"> : TEXT</tspan></text>
+    <line class="sep" x1="40" y1="422" x2="250" y2="422"/>
+    <text x="52" y="437" class="t"><tspan class="t">teldrive_video_name</tspan><tspan class="t-dim"> : TEXT</tspan></text>
+    <line class="sep" x1="40" y1="444" x2="250" y2="444"/>
+    <text x="52" y="459" class="t"><tspan class="t">teldrive_video_path</tspan><tspan class="t-dim"> : TEXT</tspan></text>
+  </g>
+  <g>
+    <rect class="box" x="560" y="40" width="210" height="124" rx="8"/>
+    <path class="box-2" d="M560,70 v-22 a8,8 0 0 1 8,-8 h194 a8,8 0 0 1 8,8 v22 Z" fill="var(--blue)"/>
+    <text x="572" y="60" class="head-t">users</text>
+    <text x="572" y="85" class="t"><tspan class="t" font-weight="700">PK </tspan><tspan class="t">id</tspan><tspan class="t-dim"> : INTEGER</tspan></text>
+    <line class="sep" x1="560" y1="92" x2="770" y2="92"/>
+    <text x="572" y="107" class="t"><tspan class="t">username</tspan><tspan class="t-dim"> : TEXT UNIQUE</tspan></text>
+    <line class="sep" x1="560" y1="114" x2="770" y2="114"/>
+    <text x="572" y="129" class="t"><tspan class="t">password_hash</tspan><tspan class="t-dim"> : TEXT</tspan></text>
+    <line class="sep" x1="560" y1="136" x2="770" y2="136"/>
+    <text x="572" y="151" class="t"><tspan class="t">created_at</tspan><tspan class="t-dim"> : TEXT</tspan></text>
+  </g>
+  <g>
+    <rect class="box" x="560" y="320" width="210" height="102" rx="8"/>
+    <path class="box-2" d="M560,350 v-22 a8,8 0 0 1 8,-8 h194 a8,8 0 0 1 8,8 v22 Z" fill="var(--blue)"/>
+    <text x="572" y="340" class="head-t">settings</text>
+    <text x="572" y="365" class="t"><tspan class="t" font-weight="700">PK </tspan><tspan class="t">key</tspan><tspan class="t-dim"> : TEXT</tspan></text>
+    <line class="sep" x1="560" y1="372" x2="770" y2="372"/>
+    <text x="572" y="387" class="t"><tspan class="t">value</tspan><tspan class="t-dim"> : TEXT</tspan></text>
+    <line class="sep" x1="560" y1="394" x2="770" y2="394"/>
+    <text x="572" y="409" class="t"><tspan class="t">updated_at</tspan><tspan class="t-dim"> : TEXT</tspan></text>
+  </g>
+</svg>
+</div>
+<script>
+  const root=document.documentElement, svg=document.getElementById('diagram'), KEY='dcnet-diagram-theme';
+  function apply(t){ root.setAttribute('data-theme',t); svg.setAttribute('data-theme',t); }
+  const saved=localStorage.getItem(KEY);
+  apply(saved || (window.matchMedia&&matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'));
+  document.getElementById('tg').onclick=()=>{ const n=root.getAttribute('data-theme')==='dark'?'light':'dark'; apply(n); localStorage.setItem(KEY,n); };
+  function svgString(){ return '<?xml version="1.0" encoding="UTF-8"?>\n'+new XMLSerializer().serializeToString(svg); }
+  document.getElementById('dl').onclick=()=>{ const b=new Blob([svgString()],{type:'image/svg+xml'}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download="m-h-nh-d-li-u-sqlite-fall-detection-web"+'.svg'; a.click(); };
+  document.getElementById('pn').onclick=()=>{ const img=new Image(); const b=new Blob([svgString()],{type:'image/svg+xml'}); const url=URL.createObjectURL(b);
+    img.onload=()=>{ const s=2, c=document.createElement('canvas'); c.width=900*s; c.height=600*s; const x=c.getContext('2d'); x.scale(s,s); x.drawImage(img,0,0); URL.revokeObjectURL(url); c.toBlob(bl=>{ const a=document.createElement('a'); a.href=URL.createObjectURL(bl); a.download="m-h-nh-d-li-u-sqlite-fall-detection-web"+'.png'; a.click(); }); };
+    img.src=url; };
+</script>
+</body>
+</html>

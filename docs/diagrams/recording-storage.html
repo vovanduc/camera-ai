@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="generator" content="archify 2.6.0">
-  <title>Luồng AI — verify_scene (primary + fallback) Diagram</title>
+  <title>Ghi hình &amp; lưu trữ Teldrive Diagram</title>
   <script>
     // Resolve the theme before first paint so light-preference users don't
     // see a dark flash. The toolbar script below re-applies with UI state.
@@ -494,14 +494,14 @@
     <div class="header">
       <div class="header-row">
         <div class="pulse-dot"></div>
-        <h1>Luồng AI — verify_scene (primary + fallback)</h1>
+        <h1>Ghi hình &amp; lưu trữ Teldrive</h1>
       </div>
-      <p class="subtitle">Gọi Vision API, tự fallback khi lỗi, parse verdict rồi cảnh báo &amp; ghi log</p>
+      <p class="subtitle">Quay clip khi có người → upload Teldrive → bảo trì/retry clip lỗi → dọn local</p>
     </div>
 
     <!-- Main Diagram -->
     <div class="diagram-container">
-      <svg viewBox="0 0 920 720" role="img" aria-label="Luồng AI — verify_scene (primary + fallback) — Gọi Vision API, tự fallback khi lỗi, parse verdict rồi cảnh báo &amp; ghi log (sequence diagram)">
+      <svg viewBox="0 0 920 720" role="img" aria-label="Ghi hình &amp; lưu trữ Teldrive — Quay clip khi có người → upload Teldrive → bảo trì/retry clip lỗi → dọn local (workflow diagram)">
         <!-- Definitions -->
         <defs>
           <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
@@ -524,136 +524,99 @@
         <!-- Background Grid -->
         <rect width="100%" height="100%" fill="url(#grid)" />
 
-        <!-- Time Segments -->
-        <rect x="48" y="150" width="824" height="100" rx="10" class="c-lane" stroke-width="1"/>
-        <text x="62" y="168" class="t-dim" font-size="9" font-weight="600">Gọi model chính</text>
+        <!-- Swimlanes -->
+        <rect x="40" y="52" width="640" height="104" rx="10" class="c-lane" stroke-width="1"/>
+        <text x="54" y="74" class="t-dim" font-size="10" font-weight="600">01 / Phát hiện</text>
 
-        <rect x="48" y="262" width="824" height="90" rx="10" class="c-lane" stroke-width="1"/>
-        <text x="62" y="280" class="t-dim" font-size="9" font-weight="600">Fallback khi lỗi</text>
+        <rect x="40" y="176" width="640" height="104" rx="10" class="c-lane" stroke-width="1"/>
+        <text x="54" y="198" class="t-dim" font-size="10" font-weight="600">02 / Ghi hình</text>
 
-        <rect x="48" y="364" width="824" height="88" rx="10" class="c-lane" stroke-width="1"/>
-        <text x="62" y="382" class="t-dim" font-size="9" font-weight="600">Parse verdict</text>
+        <rect x="40" y="300" width="640" height="104" rx="10" class="c-lane" stroke-width="1"/>
+        <text x="54" y="322" class="t-dim" font-size="10" font-weight="600">03 / Upload Teldrive</text>
 
-        <rect x="48" y="464" width="824" height="136" rx="10" class="c-lane" stroke-width="1"/>
-        <text x="62" y="482" class="t-dim" font-size="9" font-weight="600">Cảnh báo &amp; log</text>
+        <rect x="40" y="424" width="640" height="104" rx="10" class="c-lane" stroke-width="1"/>
+        <text x="54" y="446" class="t-dim" font-size="10" font-weight="600">04 / Bảo trì định kỳ</text>
 
-        <!-- Lifelines -->
-        <path d="M 62 142 L 62 655" class="a-default" stroke-width="0.8" stroke-dasharray="3,7"/>
-        <path d="M 170 142 L 170 655" class="a-default" stroke-width="0.8" stroke-dasharray="3,7"/>
-        <path d="M 278 142 L 278 655" class="a-default" stroke-width="0.8" stroke-dasharray="3,7"/>
-        <path d="M 386 142 L 386 655" class="a-default" stroke-width="0.8" stroke-dasharray="3,7"/>
-        <path d="M 494 142 L 494 655" class="a-default" stroke-width="0.8" stroke-dasharray="3,7"/>
-        <path d="M 602 142 L 602 655" class="a-default" stroke-width="0.8" stroke-dasharray="3,7"/>
-        <path d="M 710 142 L 710 655" class="a-default" stroke-width="0.8" stroke-dasharray="3,7"/>
+        <rect x="40" y="548" width="640" height="104" rx="10" class="c-lane" stroke-width="1"/>
+        <text x="54" y="570" class="t-dim" font-size="10" font-weight="600">05 / Sự kiện</text>
 
-        <!-- Messages -->
-        <path d="M 69 172 L 163 172" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <rect x="45" y="152" width="142" height="16" rx="3" class="c-mask"/>
-        <text x="116" y="162" class="t-backend" font-size="9" text-anchor="middle">verify_scene(img, camera)</text>
+        <!-- Edge paths -->
+        <path d="M 134 119 L 134 166 L 145 166 L 145 243" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path d="M 295 243 L 384 243" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path d="M 430 269 L 430 290 L 430 290 L 430 341" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
+        <path d="M 497.5 367 L 579 367" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
+        <path d="M 625 393 L 625 476 L 625 476 L 625 589" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path d="M 625 393 L 625 414 L 500 414 L 500 465" class="a-dashed" stroke-width="1.4" marker-end="url(#arrowhead-dashed)"/>
+        <path d="M 365 491 L 435 491" class="a-dashed" stroke-width="1.4" marker-end="url(#arrowhead-dashed)"/>
+        <path d="M 500 465 L 500 313 L 430 313 L 430 393" class="a-dashed" stroke-width="1.4" marker-end="url(#arrowhead-dashed)"/>
 
-        <path d="M 177 210 L 271 210" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
-        <rect x="111.39999999999999" y="190" width="225.20000000000002" height="16" rx="3" class="c-mask"/>
-        <text x="224" y="200" class="t-backend" font-size="9" text-anchor="middle">POST /chat/completions (text + image_url)</text>
-        <text x="189" y="228" class="t-dim" font-size="7">prompt theo camera.prompt_id, mặc định verify_prompt; ảnh base64 data URL; max_tokens=1000, timeout 120s</text>
+        <!-- Nodes -->
+        <rect x="42" y="93" width="92" height="52" rx="6" class="c-mask"/>
+        <rect x="42" y="93" width="92" height="52" rx="6" class="c-messagebus" stroke-width="1.5"/>
+        <text x="88" y="114" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Có người</text>
+        <text x="88" y="131" class="t-muted" font-size="8" text-anchor="middle">YOLO</text>
 
-        <path d="M 271 244 L 177 244" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
-        <rect x="184.2" y="224" width="79.60000000000001" height="16" rx="3" class="c-mask"/>
-        <text x="224" y="234" class="t-security" font-size="9" text-anchor="middle">5xx / timeout</text>
+        <rect x="145" y="217" width="150" height="52" rx="6" class="c-mask"/>
+        <rect x="145" y="217" width="150" height="52" rx="6" class="c-security" stroke-width="1.5"/>
+        <text x="220" y="238" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Đủ điều kiện?</text>
+        <text x="220" y="255" class="t-muted" font-size="8" text-anchor="middle">bật ghi &amp; ngoài cooldown</text>
 
-        <path d="M 177 284 L 379 284" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <rect x="217.4" y="264" width="121.2" height="16" rx="3" class="c-mask"/>
-        <text x="278" y="274" class="t-backend" font-size="9" text-anchor="middle">retry: fallback model</text>
+        <rect x="384" y="217" width="92" height="52" rx="6" class="c-mask"/>
+        <rect x="384" y="217" width="92" height="52" rx="6" class="c-backend" stroke-width="1.5"/>
+        <text x="430" y="238" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">record clip</text>
+        <text x="430" y="255" class="t-muted" font-size="8" text-anchor="middle">go2rtc stream.mp4</text>
 
-        <path d="M 379 322 L 177 322" class="a-default" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
-        <rect x="240.8" y="302" width="74.4" height="16" rx="3" class="c-mask"/>
-        <text x="278" y="312" class="t-muted" font-size="9" text-anchor="middle">200: content</text>
+        <rect x="362.5" y="341" width="135" height="52" rx="6" class="c-mask"/>
+        <rect x="362.5" y="341" width="135" height="52" rx="6" class="c-backend" stroke-width="1.5"/>
+        <text x="430" y="362" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">upload_event_video</text>
+        <text x="430" y="379" class="t-muted" font-size="8" text-anchor="middle">Teldrive API</text>
 
-        <path d="M 177 374 L 487 374" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
-        <rect x="271.4" y="354" width="121.2" height="16" rx="3" class="c-mask"/>
-        <text x="332" y="364" class="t-backend" font-size="9" text-anchor="middle">response_ai_content()</text>
+        <rect x="579" y="341" width="92" height="52" rx="6" class="c-mask"/>
+        <rect x="579" y="341" width="92" height="52" rx="6" class="c-security" stroke-width="1.5"/>
+        <text x="625" y="362" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Upload OK?</text>
+        <text x="625" y="379" class="t-muted" font-size="8" text-anchor="middle"></text>
 
-        <path d="M 487 426 L 177 426" class="a-default" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
-        <rect x="258.4" y="406" width="147.20000000000002" height="16" rx="3" class="c-mask"/>
-        <text x="332" y="416" class="t-muted" font-size="9" text-anchor="middle">(result, description, raw)</text>
+        <rect x="235" y="465" width="130" height="52" rx="6" class="c-mask"/>
+        <rect x="235" y="465" width="130" height="52" rx="6" class="c-backend" stroke-width="1.5"/>
+        <text x="300" y="486" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">maintenance loop</text>
+        <text x="300" y="503" class="t-muted" font-size="8" text-anchor="middle">mỗi 600s</text>
 
-        <path d="M 163 470 L 69 470" class="a-default" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
-        <rect x="65.8" y="450" width="100.4" height="16" rx="3" class="c-mask"/>
-        <text x="116" y="460" class="t-muted" font-size="9" text-anchor="middle">EMERGENCY + mô tả</text>
+        <rect x="435" y="465" width="130" height="52" rx="6" class="c-mask"/>
+        <rect x="435" y="465" width="130" height="52" rx="6" class="c-backend" stroke-width="1.5"/>
+        <text x="500" y="486" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">retry clip lỗi</text>
+        <text x="500" y="503" class="t-muted" font-size="8" text-anchor="middle">quét event_clips</text>
 
-        <path d="M 69 512 L 595 512" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <rect x="237.6" y="492" width="188.8" height="16" rx="3" class="c-mask"/>
-        <text x="332" y="502" class="t-backend" font-size="9" text-anchor="middle">sendPhoto (nếu quá alert_cooldown)</text>
+        <rect x="579" y="589" width="92" height="52" rx="6" class="c-mask"/>
+        <rect x="579" y="589" width="92" height="52" rx="6" class="c-database" stroke-width="1.5"/>
+        <text x="625" y="610" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">insert_event</text>
+        <text x="625" y="627" class="t-muted" font-size="8" text-anchor="middle">teldrive_video_uploaded</text>
 
-        <path d="M 595 548 L 69 548" class="a-default" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
-        <rect x="315" y="528" width="34" height="16" rx="3" class="c-mask"/>
-        <text x="332" y="538" class="t-muted" font-size="9" text-anchor="middle">ok</text>
+        <!-- Edge labels -->
 
-        <path d="M 69 588 L 703 588" class="a-dashed" stroke-width="1.4" marker-end="url(#arrowhead-dashed)"/>
-        <rect x="289" y="568" width="194" height="16" rx="3" class="c-mask"/>
-        <text x="386" y="578" class="t-messagebus" font-size="9" text-anchor="middle">log_event(verified / telegram_sent)</text>
+        <rect x="305.7" y="207" width="67.6" height="14" rx="3" class="c-mask"/>
+        <text x="339.5" y="217" class="t-backend" font-size="8" text-anchor="middle">đủ điều kiện</text>
 
-        <!-- Activations -->
-        <rect x="57" y="168" width="10" height="428" rx="3" class="c-mask"/>
-        <rect x="57" y="168" width="10" height="428" rx="3" class="c-backend" stroke-width="1"/>
-        <rect x="165" y="172" width="10" height="300" rx="3" class="c-mask"/>
-        <rect x="165" y="172" width="10" height="300" rx="3" class="c-backend" stroke-width="1"/>
-        <rect x="273" y="210" width="10" height="38" rx="3" class="c-mask"/>
-        <rect x="273" y="210" width="10" height="38" rx="3" class="c-cloud" stroke-width="1"/>
-        <rect x="381" y="284" width="10" height="42" rx="3" class="c-mask"/>
-        <rect x="381" y="284" width="10" height="42" rx="3" class="c-cloud" stroke-width="1"/>
-        <rect x="489" y="374" width="10" height="56" rx="3" class="c-mask"/>
-        <rect x="489" y="374" width="10" height="56" rx="3" class="c-backend" stroke-width="1"/>
-        <rect x="597" y="512" width="10" height="38" rx="3" class="c-mask"/>
-        <rect x="597" y="512" width="10" height="38" rx="3" class="c-cloud" stroke-width="1"/>
-        <rect x="705" y="584" width="10" height="12" rx="3" class="c-mask"/>
-        <rect x="705" y="584" width="10" height="12" rx="3" class="c-database" stroke-width="1"/>
 
-        <!-- Participants -->
-        <rect x="19" y="72" width="86" height="54" rx="6" class="c-mask"/>
-        <rect x="19" y="72" width="86" height="54" rx="6" class="c-backend" stroke-width="1.5"/>
-        <text x="62" y="94" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Monitor Loop</text>
-        <text x="62" y="111" class="t-muted" font-size="7" text-anchor="middle">_monitor_loop</text>
+        <rect x="586.4" y="456" width="77.2" height="14" rx="3" class="c-mask"/>
+        <text x="625" y="466" class="t-backend" font-size="8" text-anchor="middle">OK + thumbnail</text>
+        <rect x="521.5" y="394" width="82" height="14" rx="3" class="c-mask"/>
+        <text x="562.5" y="404" class="t-database" font-size="8" text-anchor="middle">lỗi → giữ local</text>
 
-        <rect x="127" y="72" width="86" height="54" rx="6" class="c-mask"/>
-        <rect x="127" y="72" width="86" height="54" rx="6" class="c-backend" stroke-width="1.5"/>
-        <text x="170" y="94" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">verify_scene</text>
-        <text x="170" y="111" class="t-muted" font-size="7" text-anchor="middle">ai.py</text>
-
-        <rect x="235" y="72" width="86" height="54" rx="6" class="c-mask"/>
-        <rect x="235" y="72" width="86" height="54" rx="6" class="c-cloud" stroke-width="1.5"/>
-        <text x="278" y="94" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Vision Model</text>
-        <text x="278" y="111" class="t-muted" font-size="7" text-anchor="middle">vision_model</text>
-
-        <rect x="343" y="72" width="86" height="54" rx="6" class="c-mask"/>
-        <rect x="343" y="72" width="86" height="54" rx="6" class="c-cloud" stroke-width="1.5"/>
-        <text x="386" y="94" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Fallback</text>
-        <text x="386" y="111" class="t-muted" font-size="7" text-anchor="middle">fallback_vision_model</text>
-
-        <rect x="451" y="72" width="86" height="54" rx="6" class="c-mask"/>
-        <rect x="451" y="72" width="86" height="54" rx="6" class="c-backend" stroke-width="1.5"/>
-        <text x="494" y="94" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Parser</text>
-        <text x="494" y="111" class="t-muted" font-size="7" text-anchor="middle">verdict + thinking</text>
-
-        <rect x="559" y="72" width="86" height="54" rx="6" class="c-mask"/>
-        <rect x="559" y="72" width="86" height="54" rx="6" class="c-cloud" stroke-width="1.5"/>
-        <text x="602" y="94" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Telegram</text>
-        <text x="602" y="111" class="t-muted" font-size="7" text-anchor="middle">sendPhoto</text>
-
-        <rect x="667" y="72" width="86" height="54" rx="6" class="c-mask"/>
-        <rect x="667" y="72" width="86" height="54" rx="6" class="c-database" stroke-width="1.5"/>
-        <text x="710" y="94" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">SQLite</text>
-        <text x="710" y="111" class="t-muted" font-size="7" text-anchor="middle">log_event</text>
+        <rect x="426.4" y="293" width="77.2" height="14" rx="3" class="c-mask"/>
+        <text x="465" y="303" class="t-database" font-size="8" text-anchor="middle">thử lại upload</text>
 
         <!-- Legend -->
-        <text x="150" y="646" class="t-primary" font-size="10" font-weight="600">Legend</text>
-        <path d="M 150 666 L 184 666" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <text x="193" y="669" class="t-muted" font-size="8">request</text>
-        <path d="M 270 666 L 304 666" class="a-default" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
-        <text x="313" y="669" class="t-muted" font-size="8">return</text>
-        <path d="M 385 666 L 419 666" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
-        <text x="428" y="669" class="t-muted" font-size="8">security</text>
-        <path d="M 530 666 L 564 666" class="a-dashed" stroke-width="1.4" marker-end="url(#arrowhead-dashed)"/>
-        <text x="573" y="669" class="t-muted" font-size="8">async trace</text>
+        <text x="175" y="676" class="t-primary" font-size="10" font-weight="600">Legend</text>
+        <rect x="175" y="688" width="14" height="9" rx="2" class="c-frontend" stroke-width="1"/>
+        <text x="195" y="696" class="t-muted" font-size="7">User UI</text>
+        <rect x="260" y="688" width="14" height="9" rx="2" class="c-backend" stroke-width="1"/>
+        <text x="280" y="696" class="t-muted" font-size="7">Agent logic</text>
+        <rect x="370" y="688" width="14" height="9" rx="2" class="c-security" stroke-width="1"/>
+        <text x="390" y="696" class="t-muted" font-size="7">Policy</text>
+        <rect x="455" y="688" width="14" height="9" rx="2" class="c-messagebus" stroke-width="1"/>
+        <text x="475" y="696" class="t-muted" font-size="7">Tool action</text>
+        <rect x="565" y="688" width="14" height="9" rx="2" class="c-database" stroke-width="1"/>
+        <text x="585" y="696" class="t-muted" font-size="7">Context / trace</text>
       </svg>
     </div>
 
@@ -662,43 +625,43 @@
       <div class="card">
         <div class="card-header">
           <div class="card-dot cyan"></div>
-          <h3>Chọn prompt &amp; model</h3>
+          <h3>Ưu tiên go2rtc</h3>
         </div>
         <ul>
-          <li>&bull; prompt lấy theo camera.prompt_id, nếu không có dùng verify_prompt chung</li>
-          <li>&bull; Ảnh mã hoá base64 data URL đính kèm image_url</li>
-          <li>&bull; max_tokens=1000, stream=false, timeout=120s</li>
+          <li>&bull; Quay trực tiếp qua go2rtc stream.mp4 (copy codec H.264)</li>
+          <li>&bull; Dự phòng ghi frame bằng OpenCV VideoWriter</li>
+          <li>&bull; Cộng 6s đệm chờ I-frame đầu tiên</li>
         </ul>
       </div>
 
       <div class="card">
         <div class="card-header">
-          <div class="card-dot rose"></div>
-          <h3>Fallback tự động</h3>
+          <div class="card-dot amber"></div>
+          <h3>Bền bỉ khi lỗi</h3>
         </div>
         <ul>
-          <li>&bull; Lỗi RuntimeError (HTTP/timeout) ở model chính → thử fallback_vision_model</li>
-          <li>&bull; Chỉ fallback khi có cấu hình và khác model chính</li>
-          <li>&bull; 3 lần lỗi liên tiếp → tạm ngưng gọi AI (backoff) + cảnh báo Telegram</li>
+          <li>&bull; Upload lỗi ≥3 lần → suspend backoff (xem circuit breaker)</li>
+          <li>&bull; Clip lỗi giữ lại local, retry sau ≥300s</li>
+          <li>&bull; maintenance loop chạy nền mỗi 600s</li>
         </ul>
       </div>
 
       <div class="card">
         <div class="card-header">
           <div class="card-dot emerald"></div>
-          <h3>Parse verdict bền bỉ</h3>
+          <h3>Dọn dẹp local</h3>
         </div>
         <ul>
-          <li>&bull; Đọc được SSE, JSON nối, hoặc JSON thường</li>
-          <li>&bull; strip_thinking_content() bỏ &lt;think&gt;…&lt;/think&gt;</li>
-          <li>&bull; Dòng 1 = SAFE/EMERGENCY, dòng 2 = mô tả ngắn (≤100 ký tự)</li>
+          <li>&bull; Upload xong: xóa clip nếu không bật lưu local</li>
+          <li>&bull; Đồng bộ thumbnail recording lên Teldrive</li>
+          <li>&bull; Xóa thumbnail tạm mồ côi quá 600s</li>
         </ul>
       </div>
     </div>
 
     <!-- Footer -->
     <p class="footer">
-      Sequence diagram &bull; Built with Archify<span class="no-print"> &bull; Press <kbd>T</kbd> for theme and <kbd>E</kbd> for export</span>
+      Workflow diagram &bull; Built with Archify<span class="no-print"> &bull; Press <kbd>T</kbd> for theme and <kbd>E</kbd> for export</span>
     </p>
   </div>
 

@@ -10,11 +10,11 @@ This is a **monorepo of two independent applications** that share only a domain 
 | --- | --- | --- |
 | [`simple_ai_vision/`](simple_ai_vision) | A deliberately minimal Home Assistant Add-on: analyzes JPEG snapshots via an OpenAI-compatible Vision API and sends Telegram alerts. | HA Supervisor add-on (Docker, amd64/aarch64) |
 | [`fall_detection_web/`](fall_detection_web) | A standalone self-hosted web app: local YOLOv8 person detection → AI Vision verification → Telegram alert → incident recording/timeline. | VPS / mini-PC via uvicorn + systemd |
-| [`docs/diagrams/`](docs/diagrams) | Generated architecture & flow diagrams (gallery at `index.html`, sources in `src/*.json`). Focused on `fall_detection_web`, including two dedicated to the AI verification flow. | Static HTML, not deployed |
+| [`docs/diagrams/`](docs/diagrams) | Generated architecture & flow diagrams — **8 diagrams** covering both `fall_detection_web` and `simple_ai_vision`, including **3 dedicated to the AI flow** (verification sequence, data pipeline, fault tolerance). Gallery `index.html`, index [`README.md`](docs/diagrams/README.md), sources `src/*.json`. | Static HTML, not deployed |
 
 `repository.yaml` defines the HA add-on repository; only `simple_ai_vision/` is published through it. All in-repo docs (README, AGENTS.md) and commit messages are written in **Vietnamese**; default to UTF-8 and match that for user-facing strings.
 
-**Diagrams** ([`docs/diagrams/`](docs/diagrams)) are produced by the `dcnet-diagram` skill: each `.html` is self-contained (dark/light toggle, PNG/SVG export) and re-rendered from its JSON-IR in `docs/diagrams/src/`. To update a diagram, edit the `src/*.json` and re-run the matching renderer, then rebuild the gallery — see [`docs/diagrams/EXPLAINER.md`](docs/diagrams/EXPLAINER.md). Keep diagrams in sync when the `fall_detection_web` flow changes.
+**Diagrams** ([`docs/diagrams/`](docs/diagrams)) are produced by the `dcnet-diagram` skill: each `.html` is self-contained (dark/light toggle, PNG/SVG export) and re-rendered from its JSON-IR in `docs/diagrams/src/`. Start from [`docs/diagrams/README.md`](docs/diagrams/README.md) (file index + how-to) and [`docs/diagrams/EXPLAINER.md`](docs/diagrams/EXPLAINER.md) (per-diagram detail + provenance). To update a diagram, edit the `src/*.json`, re-run the matching renderer, then rebuild the gallery (`build_gallery.py manifest.json .`). Keep diagrams in sync when either app's flow changes. This `docs/diagrams/` folder is mirrored identically in the sibling `camera-check` repo.
 
 ## Read the AGENTS.md before editing either app
 

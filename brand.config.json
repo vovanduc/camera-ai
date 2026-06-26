@@ -1,0 +1,15 @@
+{
+  "brand_name": "DCNET Camera AI",
+  "tagline": "Giám sát camera AI & cảnh báo té ngã",
+  "language": "vi",
+  "keep_keywords": true,
+  "output_dir": "docs/diagrams",
+  "font": "\"Be Vietnam Pro\", Inter, system-ui, sans-serif",
+  "colors": {
+    "primary":   "#1463E6",
+    "secondary": "#0DA5A0",
+    "accent":    "#FF5B6E",
+    "violet":    "#8B5CF6",
+    "ink":       "#0F172A"
+  }
+}

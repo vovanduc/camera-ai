@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Ghi hình & lưu trữ Teldrive",
+    "subtitle": "Quay clip khi có người → upload Teldrive → bảo trì/retry clip lỗi → dọn local",
+    "output": "recording-storage.html",
+    "viewBox": [920, 720]
+  },
+  "lanes": [
+    { "id": "det", "label": "Phát hiện" },
+    { "id": "rec", "label": "Ghi hình" },
+    { "id": "up", "label": "Upload Teldrive" },
+    { "id": "mnt", "label": "Bảo trì định kỳ" },
+    { "id": "log", "label": "Sự kiện" }
+  ],
+  "nodes": [
+    { "id": "trigger", "lane": "det", "col": 0, "type": "messagebus", "label": "Có người", "sublabel": "YOLO" },
+    { "id": "gate", "lane": "rec", "col": 1, "type": "security", "label": "Đủ điều kiện?", "sublabel": "bật ghi & ngoài cooldown", "width": 150 },
+    { "id": "clip", "lane": "rec", "col": 3, "type": "backend", "label": "record clip", "sublabel": "go2rtc stream.mp4" },
+    { "id": "upload", "lane": "up", "col": 3, "type": "backend", "label": "upload_event_video", "sublabel": "Teldrive API", "width": 135 },
+    { "id": "okq", "lane": "up", "col": 5, "type": "security", "label": "Upload OK?" },
+    { "id": "maint", "lane": "mnt", "col": 2, "type": "backend", "label": "maintenance loop", "sublabel": "mỗi 600s", "width": 130 },
+    { "id": "retry", "lane": "mnt", "col": 4, "type": "backend", "label": "retry clip lỗi", "sublabel": "quét event_clips", "width": 130 },
+    { "id": "event", "lane": "log", "col": 5, "type": "database", "label": "insert_event", "sublabel": "teldrive_video_uploaded" }
+  ],
+  "edges": [
+    { "from": "trigger", "to": "gate", "variant": "emphasis" },
+    { "from": "gate", "to": "clip", "label": "đủ điều kiện", "variant": "emphasis", "labelSegment": 1, "labelDy": -16 },
+    { "from": "clip", "to": "upload", "variant": "default", "fromSide": "bottom", "toSide": "top", "route": "drop" },
+    { "from": "upload", "to": "okq", "variant": "default" },
+    { "from": "okq", "to": "event", "label": "OK + thumbnail", "variant": "emphasis", "fromSide": "bottom", "toSide": "top", "route": "drop", "labelSegment": 1 },
+    { "from": "okq", "to": "retry", "label": "lỗi → giữ local", "variant": "dashed", "fromSide": "bottom", "toSide": "top", "route": "drop", "labelSegment": 1 },
+    { "from": "maint", "to": "retry", "variant": "dashed" },
+    { "from": "retry", "to": "upload", "label": "thử lại upload", "variant": "dashed", "fromSide": "top", "toSide": "bottom", "route": "up-channel", "labelSegment": 1 }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Ưu tiên go2rtc", "items": ["Quay trực tiếp qua go2rtc stream.mp4 (copy codec H.264)", "Dự phòng ghi frame bằng OpenCV VideoWriter", "Cộng 6s đệm chờ I-frame đầu tiên"] },
+    { "dot": "amber", "title": "Bền bỉ khi lỗi", "items": ["Upload lỗi ≥3 lần → suspend backoff (xem circuit breaker)", "Clip lỗi giữ lại local, retry sau ≥300s", "maintenance loop chạy nền mỗi 600s"] },
+    { "dot": "emerald", "title": "Dọn dẹp local", "items": ["Upload xong: xóa clip nếu không bật lưu local", "Đồng bộ thumbnail recording lên Teldrive", "Xóa thumbnail tạm mồ côi quá 600s"] }
+  ]
+}
