@@ -1,7 +1,36 @@
 # Design — Phase 3: Modular per-customer
 
 **Ngày:** 2026-06-26
-**Trạng thái:** DESIGN (chờ review)
+**Trạng thái:** DONE (implemented — LIGHT scope; plan `../plans/2026-06-26-phase3-modular-percustomer.md`, branch `feat/phase3-modular`)
+
+---
+
+## ⚠️ Thực tế (audit 2026-06-26) — spec gốc viết BLIND, đọc phần này trước
+
+Spec gốc (dưới) viết khi chưa đọc `monitor.py`/`config.py`/`cameras.html`/`app.py`/`reid_worker`. Audit khi implement phát hiện:
+
+1. **2 registry DISJOINT schema:** FDW cameras = JSON blob trong `settings` (13 field per-cam: name, rtsp_url, go2rtc_src, live_url, live_mode, prompt_id, local_save_*, teldrive_*, record_* — **đều per-camera**, KHÔNG global như §2.6 giả định). Bảng `cameras` (counting/reid) lean, không có các field đó. Gộp = bloat ~10 cột hoặc hybrid JSONB.
+2. **FDW cameras UI = JS SPA** (`/cameras` fetch `/api/cameras`, POST full array, `<dialog>`, optimistic toggle) — KHÔNG server-rendered form. Spec §5.d/§5.e `POST /cameras/{id}/modules` form **sai pattern**.
+3. **`reid_worker` = single-cam-per-container** (`CAM_UID` env → `cam_id_for`), KHÔNG list-query. §5.g list-query rewrite không cần (design sạch, shelved).
+4. **settings-JSON cameras RỖNG** (greenfield, đã verify) → migration (§2.4/§4.3/§5.h) migrate KHÔNG GÌ.
+5. **"Axis YOLO off" goal ĐÃ đạt sẵn:** monitor.py đọc settings-JSON cameras (rỗng) → không chạy YOLO; cam Axis ở bảng `cameras` (monitor không thấy). Registry tách biệt → no double-process.
+
+### Scope ĐÃ implement (LIGHT — disjoint camera sets + greenfield):
+- 4 cột flag (`counting/fall_detection/reid/live_enabled`) trên bảng `cameras` + 2 partial index + seed Axis (counting+live) — §4.1/§4.2 ✅
+- db helpers `list_cameras_for_module`/`list_cameras_all`/`update_camera_modules` — §5.a (subset) ✅
+- counting page filter `counting_enabled` (JOIN cameras) ✅
+- trang `/modules` toggle UI (SPA fetch, bảng cameras) + `/api/camera-modules` GET/POST ✅
+
+### DEFERRED (wire khi có deploy mixed multi-customer thật — disjoint + greenfield nên chưa cần):
+- §2.4/§2.5/§4.3/§5.h settings-JSON ↔ cameras-table merge + migration script (không có data).
+- §5.b monitor.py rewire (`cfg["cameras"]` → DB query) — đòi registry merge trước.
+- §5.c config.py xóa `cameras` key — đòi merge.
+- §5.g reid_worker flag-gate — shelved; `reid_enabled` là gate check KHI activate, không sửa code shelved.
+- §2.6 per-cam config override — N/A.
+
+Phần dưới = spec gốc (giữ để tham chiếu; mục bị defer đã liệt kê trên).
+
+---
 **Phase:** 3 / 5 (xem tổng thể: `2026-06-26-dcnet-platform-migration-design.md`)
 **Tiền đề:** Phase 0 DONE (Postgres, `incidents`/`users`/`settings`); Phase 1 DONE (bảng `cameras` + `events`, `event_collector`, UI đếm); Phase 2 DONE (Re-ID `face_vectors`/`reid_groups`, `reid_worker`, page Nhóm theo người).
 **Vấn đề cốt lõi:** Sau Phase 1 tồn tại **hai camera registry** song song: bảng `cameras` (counting ACAP) và `settings`-JSON key `"cameras"` (FDW fall-detection). Phase 3 **gộp về một** source of truth, bổ sung module flag per-camera, wire flag vào mỗi service.
