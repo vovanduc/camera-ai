@@ -646,7 +646,7 @@
       $("cameraCount").textContent = `${state.cameras.length} camera${state.cameras.length === 1 ? "" : "s"}`;
       const grid = $("cameraGrid");
       if (!state.cameras.length) {
-        grid.innerHTML = '<div class="empty-panel">No cameras configured.</div>';
+        grid.innerHTML = '<div class="empty-panel">Chưa có camera fall-detection (YOLO). Nhấn <b>Add camera</b> để thêm.<br><span style="opacity:.7">Camera đếm người ra/vào (ACAP edge) được quản ở trang <a href="/modules" style="color:var(--info,#38bdf8)">Module camera</a>.</span></div>';
         return;
       }
       grid.innerHTML = state.cameras.map((camera, index) => {
