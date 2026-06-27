@@ -1,0 +1,156 @@
+<style>
+  :root {
+    --bg: #020617;
+    --bg-soft: #07111f;
+    --surface: #0f172a;
+    --surface-2: #111c2f;
+    --surface-3: #1e293b;
+    --line: #26364d;
+    --line-strong: #3d506c;
+    --text: #f8fafc;
+    --muted: #9aa8bd;
+    --faint: #68778d;
+    --good: #22c55e;
+    --info: #38bdf8;
+    --warn: #f59e0b;
+    --bad: #f43f5e;
+    --violet: #a78bfa;
+    --shadow: 0 24px 80px rgba(0, 0, 0, .34);
+    --radius: 8px;
+    --sidebar: 272px;
+  }
+
+  .app {
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: var(--sidebar) minmax(0, 1fr);
+  }
+
+  .sidebar {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    padding: 18px;
+    border-right: 1px solid var(--line);
+    background: rgba(2, 6, 23, .78);
+    backdrop-filter: blur(18px);
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    z-index: 20;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 54px;
+  }
+
+  .brand-mark {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--good);
+    background: linear-gradient(180deg, rgba(34, 197, 94, .16), rgba(56, 189, 248, .08));
+    border: 1px solid rgba(34, 197, 94, .36);
+    box-shadow: inset 0 0 28px rgba(34, 197, 94, .08), 0 0 22px rgba(34, 197, 94, .10);
+    flex: 0 0 auto;
+  }
+
+  .brand h1 { font-size: 17px; letter-spacing: 0; }
+  .brand p { color: var(--muted); font-size: 12px; margin-top: 2px; }
+
+  /* SVG icon styling (ported from index.html line 95) — without this, injected
+     sidebar icons have no size/stroke and render invisible. */
+  .brand-mark svg, .nav-btn svg, .sidebar-foot .btn svg {
+    width: 20px;
+    height: 20px;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    flex: 0 0 auto;
+  }
+
+  .nav {
+    display: grid;
+    gap: 6px;
+  }
+
+  .nav-btn {
+    width: 100%;
+    min-height: 42px;
+    border: 1px solid transparent;
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--muted);
+    padding: 9px 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-align: left;
+    text-decoration: none;
+    transition: background .18s ease, border-color .18s ease, color .18s ease;
+  }
+
+  .nav-btn:hover { color: var(--text); background: rgba(30, 41, 59, .62); }
+  .nav-btn.active {
+    color: var(--text);
+    border-color: rgba(34, 197, 94, .42);
+    background: rgba(34, 197, 94, .12);
+  }
+
+  .sidebar-foot {
+    margin-top: auto;
+    display: grid;
+    gap: 10px;
+  }
+
+  .main {
+    min-width: 0;
+    padding: 18px 22px 28px;
+  }
+
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    min-height: 72px;
+    margin: -18px -22px 18px;
+    padding: 14px 22px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    border-bottom: 1px solid rgba(38, 54, 77, .84);
+    background: rgba(7, 17, 31, .82);
+    backdrop-filter: blur(18px);
+  }
+
+  .page-title h2 { font-size: 20px; }
+  .page-title p { color: var(--muted); margin-top: 3px; font-size: 13px; }
+
+  @media (max-width: 1100px) {
+    .app { grid-template-columns: 1fr; }
+    .sidebar {
+      position: static;
+      height: auto;
+      border-right: 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .nav { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .sidebar-foot { display: none; }
+  }
+
+  @media (max-width: 720px) {
+    .main { padding: 14px; }
+    .topbar { position: static; margin: -14px -14px 14px; padding: 14px; align-items: stretch; flex-direction: column; }
+    .nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .brand h1 { font-size: 15px; }
+  }
+</style>

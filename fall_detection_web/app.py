@@ -141,19 +141,19 @@ def index_page(request: Request, _: str = Depends(auth.require_auth)):
 
 @app.get("/cameras", response_class=HTMLResponse)
 def cameras_page(request: Request, _: str = Depends(auth.require_auth)):
-    return templates.TemplateResponse(request=request, name="cameras.html", context={})
+    return templates.TemplateResponse(request=request, name="cameras.html", context={"active_nav": "cameras"})
 
 
 @app.get("/camera/{camera_name:path}", response_class=HTMLResponse)
 def camera_page(request: Request, camera_name: str, _: str = Depends(auth.require_auth)):
     if not camera_name.strip():
         return RedirectResponse(url="/cameras", status_code=status.HTTP_302_FOUND)
-    return templates.TemplateResponse(request=request, name="camera_detail.html", context={"camera_name": camera_name})
+    return templates.TemplateResponse(request=request, name="camera_detail.html", context={"camera_name": camera_name, "active_nav": "cameras"})
 
 
 @app.get("/counting", response_class=HTMLResponse)
 def counting_page(request: Request, _: str = Depends(auth.require_auth)):
-    return templates.TemplateResponse(request=request, name="counting.html", context={})
+    return templates.TemplateResponse(request=request, name="counting.html", context={"active_nav": "counting"})
 
 
 @app.get("/api/counting")
@@ -182,7 +182,7 @@ def _reid_enabled() -> bool:
 def groups_page(request: Request, _: str = Depends(auth.require_auth)):
     return templates.TemplateResponse(
         request=request, name="groups.html",
-        context={"reid_enabled": _reid_enabled()})
+        context={"reid_enabled": _reid_enabled(), "active_nav": "groups"})
 
 
 @app.get("/api/groups")
@@ -232,7 +232,7 @@ def reid_crop(group_id: str, filename: str, _: str = Depends(auth.require_auth))
 
 @app.get("/modules", response_class=HTMLResponse)
 def modules_page(request: Request, _: str = Depends(auth.require_auth)):
-    return templates.TemplateResponse(request=request, name="modules.html", context={})
+    return templates.TemplateResponse(request=request, name="modules.html", context={"active_nav": "modules"})
 
 
 @app.get("/api/camera-modules")

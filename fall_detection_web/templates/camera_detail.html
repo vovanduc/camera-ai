@@ -50,88 +50,6 @@
     h1, h2, h3, .mono { font-family: "Fira Code", ui-monospace, SFMono-Regular, Consolas, monospace; }
     .hidden { display: none !important; }
 
-    .app {
-      min-height: 100vh;
-      display: grid;
-      grid-template-columns: var(--sidebar) minmax(0, 1fr);
-    }
-
-    .sidebar {
-      position: sticky;
-      top: 0;
-      height: 100vh;
-      padding: 18px;
-      border-right: 1px solid var(--line);
-      background: rgba(2, 6, 23, .78);
-      backdrop-filter: blur(18px);
-      display: flex;
-      flex-direction: column;
-      gap: 18px;
-      z-index: 20;
-    }
-
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      min-height: 54px;
-    }
-
-    .brand-mark, .icon-box {
-      width: 44px;
-      height: 44px;
-      border-radius: var(--radius);
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--good);
-      background: linear-gradient(180deg, rgba(34, 197, 94, .16), rgba(56, 189, 248, .08));
-      border: 1px solid rgba(34, 197, 94, .36);
-      box-shadow: inset 0 0 28px rgba(34, 197, 94, .08), 0 0 22px rgba(34, 197, 94, .10);
-      flex: 0 0 auto;
-    }
-
-    .brand-mark svg, .icon-box svg, .btn svg, .nav-btn svg, .status-chip svg {
-      width: 20px;
-      height: 20px;
-      stroke: currentColor;
-      stroke-width: 1.8;
-      fill: none;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-      flex: 0 0 auto;
-    }
-
-    .brand h1 { font-size: 17px; letter-spacing: 0; }
-    .brand p { color: var(--muted); font-size: 12px; margin-top: 2px; }
-
-    .nav {
-      display: grid;
-      gap: 6px;
-    }
-
-    .nav-btn {
-      width: 100%;
-      min-height: 42px;
-      border: 1px solid transparent;
-      border-radius: var(--radius);
-      background: transparent;
-      color: var(--muted);
-      padding: 9px 10px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      text-align: left;
-      transition: background .18s ease, border-color .18s ease, color .18s ease;
-    }
-
-    .nav-btn:hover { color: var(--text); background: rgba(30, 41, 59, .62); }
-    .nav-btn.active {
-      color: var(--text);
-      border-color: rgba(34, 197, 94, .42);
-      background: rgba(34, 197, 94, .12);
-    }
-
     .spacer { flex: 1; }
 
     .side-stats {
@@ -509,14 +427,6 @@
     @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
     @media (max-width: 1100px) {
-      .app { grid-template-columns: 1fr; }
-      .sidebar {
-        position: static;
-        height: auto;
-        border-right: 0;
-        border-bottom: 1px solid var(--line);
-      }
-      .nav { grid-template-columns: repeat(4, minmax(0, 1fr)); }
       .side-stats { display: none; }
       .detail-grid, .recordings-grid { grid-template-columns: 1fr; }
       .topbar { position: static; }
@@ -525,7 +435,6 @@
     @media (max-width: 720px) {
       .content { padding: 12px 14px 24px; gap: 10px; }
       .topbar { margin: 0; padding: 12px 14px; }
-      .nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .topbar { align-items: stretch; flex-direction: column; }
       .actions { align-items: stretch; flex-direction: column; }
       .btn, .status-chip { width: 100%; }
@@ -534,35 +443,11 @@
       .form-grid { grid-template-columns: 1fr; }
     }
   </style>
+  {% include "_sidebar_css.html" %}
 </head>
 <body>
   <div class="app">
-    <aside class="sidebar">
-      <div class="brand">
-        <div class="brand-mark" aria-hidden="true" data-icon="shield-pulse"></div>
-        <div>
-          <h1>Fall Detection</h1>
-          <p>Camera operations console</p>
-        </div>
-      </div>
-      <nav class="nav" aria-label="Primary">
-        <a class="nav-btn" href="/"><span data-icon="layout"></span>Dashboard</a>
-        <a class="nav-btn active" href="/cameras"><span data-icon="camera"></span>Cameras</a>
-        <a class="nav-btn" href="/#prompts"><span data-icon="file-text"></span>Prompts</a>
-        <a class="nav-btn" href="/#live"><span data-icon="monitor"></span>Live View</a>
-        <a class="nav-btn" href="/#settings"><span data-icon="settings"></span>Settings</a>
-        <a class="nav-btn" href="/#tools"><span data-icon="wrench"></span>Tools</a>
-      </nav>
-      <div class="spacer"></div>
-      <div class="side-stats">
-        <div><span>CPU</span><b id="cpuStat">-</b></div>
-        <div><span>RAM</span><b id="ramStat">-</b></div>
-        <div><span>Disk</span><b id="diskStat">-</b></div>
-      </div>
-      <form action="/auth/logout" method="post" style="width: 100%;">
-        <button class="btn danger" type="submit" style="width: 100%;"><span data-icon="logout"></span>Logout</button>
-      </form>
-    </aside>
+    {% include "_sidebar.html" %}
     <main class="main">
       <header class="topbar">
         <div><h2 id="pageTitle">Camera Detail</h2><p class="muted" id="pageMeta">Loading camera timeline.</p></div>
@@ -731,7 +616,10 @@
       video: '<svg viewBox="0 0 24 24"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="M17 9l4-2v10l-4-2z"/></svg>',
       "prompt-icon": '<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8M16 17H8"/></svg>',
       "link-icon": '<svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>',
-      edit: '<svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>'
+      edit: '<svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>',
+      "bar-chart-2": '<svg viewBox="0 0 24 24"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>',
+      users: '<svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+      sliders: '<svg viewBox="0 0 24 24"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>'
     };
 
     document.querySelectorAll("[data-icon]").forEach(el => { el.innerHTML = icons[el.dataset.icon] || ""; });
