@@ -6,109 +6,224 @@
   <title>Module camera — DCNET Camera</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.ico">
   <style>
-    :root { --bg:#0f172a; --card:#1e293b; --text:#e2e8f0; --muted:#94a3b8;
-            --acc:#38bdf8; --on:#22c55e; --line:rgba(148,163,184,.18); }
-    * { box-sizing:border-box; }
-    body { margin:0; background:var(--bg); color:var(--text);
-           font-family:system-ui,-apple-system,sans-serif; }
-    a { color:var(--acc); text-decoration:none; }
-    /* ── top nav ── */
-    .topnav { display:flex; align-items:center; gap:18px; flex-wrap:wrap;
-              padding:12px 20px; border-bottom:1px solid var(--line);
-              background:rgba(15,23,42,.92); position:sticky; top:0; z-index:20;
-              backdrop-filter:blur(14px); }
-    .brand { display:flex; align-items:center; gap:10px; margin-right:8px; }
-    .brand .mark { width:34px; height:34px; border-radius:7px; background:rgba(34,197,94,.14);
-                   border:1px solid rgba(34,197,94,.35); display:grid; place-items:center;
-                   color:var(--on); font-size:1rem; }
-    .brand h1 { font-size:.9rem; font-weight:700; margin:0; color:var(--text); }
-    .nav { display:flex; gap:4px; flex-wrap:wrap; }
-    .nav-link { padding:6px 11px; border-radius:6px; font-size:.82rem; color:var(--muted);
-                white-space:nowrap; border:1px solid transparent; }
-    .nav-link:hover { color:var(--text); background:rgba(34,197,94,.10); border-color:rgba(34,197,94,.28); }
-    .nav-link.active { color:var(--text); background:rgba(34,197,94,.14); border-color:rgba(34,197,94,.42); }
-    /* ── page content ── */
-    .page { padding:20px 24px; }
-    h1 { font-size:1.4rem; margin:0 0 4px; }
-    .cap { color:var(--muted); font-size:.85rem; margin:0 0 18px; }
-    table { width:100%; border-collapse:collapse; background:var(--card); border-radius:12px; overflow:hidden; }
-    th, td { padding:12px 14px; text-align:left; border-bottom:1px solid rgba(148,163,184,.15); }
-    th { color:var(--muted); font-size:.78rem; text-transform:uppercase; letter-spacing:.04em; }
-    td.cam { font-weight:600; }
-    td .uid { color:var(--muted); font-size:.72rem; font-weight:400; }
-    .mod { text-align:center; }
-    input[type=checkbox] { width:18px; height:18px; accent-color:var(--on); cursor:pointer; }
-    .master.off { opacity:.45; }
-    .badge { font-size:.7rem; padding:1px 7px; border-radius:5px; }
-    .badge.on { background:rgba(34,197,94,.2); color:var(--on); }
-    .badge.off { background:rgba(148,163,184,.18); color:var(--muted); }
-    #msg { margin-top:12px; font-size:.82rem; color:var(--muted); min-height:1.2em; }
+    :root {
+      --bg: #020617;
+      --bg-soft: #07111f;
+      --surface: #0f172a;
+      --surface-3: #1e293b;
+      --line: #26364d;
+      --line-strong: #3d506c;
+      --text: #f8fafc;
+      --muted: #9aa8bd;
+      --good: #22c55e;
+      --info: #38bdf8;
+      --bad: #f43f5e;
+      --radius: 8px;
+      --sidebar: 272px;
+      /* page-specific */
+      --acc: #38bdf8;
+      --on: #22c55e;
+      --card: #1e293b;
+    }
+    * { box-sizing: border-box; }
+    html { min-height: 100%; background: var(--bg); }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 18% -12%, rgba(56, 189, 248, .15), transparent 31rem),
+        radial-gradient(circle at 88% 4%, rgba(34, 197, 94, .12), transparent 28rem),
+        linear-gradient(180deg, #020617 0%, #07111f 100%);
+      color: var(--text);
+      font: 14px/1.45 "Fira Sans", Arial, sans-serif;
+    }
+    a { color: var(--acc); text-decoration: none; }
+    h1, h2, h3, p { margin: 0; }
+    button, input { font: inherit; cursor: pointer; }
+
+    /* ── app shell ── */
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: var(--sidebar) minmax(0, 1fr);
+    }
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 18px;
+      border-right: 1px solid var(--line);
+      background: rgba(2, 6, 23, .78);
+      backdrop-filter: blur(18px);
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      z-index: 20;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-height: 54px;
+    }
+    .brand-mark {
+      width: 44px; height: 44px;
+      border-radius: var(--radius);
+      display: inline-flex; align-items: center; justify-content: center;
+      color: var(--good); flex: 0 0 auto;
+      background: linear-gradient(180deg, rgba(34, 197, 94, .16), rgba(56, 189, 248, .08));
+      border: 1px solid rgba(34, 197, 94, .36);
+      box-shadow: inset 0 0 28px rgba(34, 197, 94, .08), 0 0 22px rgba(34, 197, 94, .10);
+    }
+    .brand h1 { font-size: 17px; letter-spacing: 0; }
+    .brand p { color: var(--muted); font-size: 12px; margin-top: 2px; }
+    .nav { display: grid; gap: 6px; }
+    .nav-btn {
+      width: 100%;
+      min-height: 42px;
+      border: 1px solid transparent;
+      border-radius: var(--radius);
+      background: transparent;
+      color: var(--muted);
+      padding: 9px 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-align: left;
+      text-decoration: none;
+      transition: background .18s ease, border-color .18s ease, color .18s ease;
+    }
+    .nav-btn:hover { color: var(--text); background: rgba(30, 41, 59, .62); }
+    .nav-btn.active {
+      color: var(--text);
+      border-color: rgba(34, 197, 94, .42);
+      background: rgba(34, 197, 94, .12);
+    }
+    .sidebar-foot { margin-top: auto; display: grid; gap: 10px; }
+    .btn {
+      min-height: 40px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius);
+      background: rgba(30, 41, 59, .62);
+      color: var(--text);
+      padding: 9px 12px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-weight: 700;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+    .btn.danger { border-color: rgba(244, 63, 94, .72); color: #fecdd3; background: rgba(244, 63, 94, .12); }
+    .btn.danger:hover { background: rgba(244, 63, 94, .20); }
+
+    /* ── main content ── */
+    .main { min-width: 0; padding: 20px 24px; }
+    h1 { font-size: 1.4rem; margin: 0 0 4px; }
+    .cap { color: var(--muted); font-size: .85rem; margin: 0 0 18px; }
+    table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 12px; overflow: hidden; }
+    th, td { padding: 12px 14px; text-align: left; border-bottom: 1px solid rgba(148, 163, 184, .15); }
+    th { color: var(--muted); font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; }
+    td.cam { font-weight: 600; }
+    td .uid { color: var(--muted); font-size: .72rem; font-weight: 400; }
+    .mod { text-align: center; }
+    input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--on); cursor: pointer; }
+    .master.off { opacity: .45; }
+    .badge { font-size: .7rem; padding: 1px 7px; border-radius: 5px; }
+    .badge.on { background: rgba(34, 197, 94, .2); color: var(--on); }
+    .badge.off { background: rgba(148, 163, 184, .18); color: var(--muted); }
+    #msg { margin-top: 12px; font-size: .82rem; color: var(--muted); min-height: 1.2em; }
+
+    @media (max-width: 1100px) {
+      .app { grid-template-columns: 1fr; }
+      .sidebar { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); }
+      .nav { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+      .sidebar-foot { display: none; }
+    }
+    @media (max-width: 720px) {
+      .nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
   </style>
 </head>
 <body>
-  <nav class="topnav">
-    <div class="brand"><div class="mark">▣</div><h1>DCNET Camera</h1></div>
-    <div class="nav">
-      <a class="nav-link" href="/">Dashboard</a>
-      <a class="nav-link" href="/cameras">Cameras</a>
-      <a class="nav-link" href="/counting">Đếm ra/vào</a>
-      <a class="nav-link" href="/groups">Nhóm theo người</a>
-      <a class="nav-link active" href="/modules">Module camera</a>
-      <a class="nav-link" href="/prompts">Prompts</a>
-      <a class="nav-link" href="/live">Live View</a>
-      <a class="nav-link" href="/settings">Settings</a>
-      <a class="nav-link" href="/tools">Tools</a>
-    </div>
-  </nav>
-  <div class="page">
-  <h1>Module camera (per-customer)</h1>
-  <p class="cap">Bật/tắt module độc lập mỗi camera. Module chạy ⟺ camera <b>enabled</b> + flag bật.
-    (Registry counting/Re-ID. Camera fall-detection quản ở trang Cameras.)</p>
-  <p class="cap" style="color:#f59e0b">Hiện chỉ <b>Đếm</b> wire vào hành vi; Fall-det/Re-ID/Live là flag chuẩn bị (wire ở deploy mixed multi-customer).</p>
-  <table>
-    <thead><tr>
-      <th>Camera</th><th>Trạng thái</th>
-      <th class="mod">Đếm</th>
-      <th class="mod">Fall-det<span style="font-weight:400;color:var(--muted);font-size:.62rem;display:block">(chưa wire)</span></th>
-      <th class="mod">Re-ID<span style="font-weight:400;color:var(--muted);font-size:.62rem;display:block">(chưa wire)</span></th>
-      <th class="mod">Live<span style="font-weight:400;color:var(--muted);font-size:.62rem;display:block">(chưa wire)</span></th>
-    </tr></thead>
-    <tbody id="rows"></tbody>
-  </table>
-  <div id="msg"></div>
-  <script>
-    const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-    const MODS = ["counting", "fall_detection", "reid", "live"];
-    async function load() {
-      const r = await fetch("/api/camera-modules", { credentials: "same-origin" });
-      if (!r.ok) { document.getElementById("msg").textContent = "Lỗi tải dữ liệu."; return; }
-      const d = await r.json();
-      const rows = document.getElementById("rows");
-      if (!d.cameras.length) { rows.innerHTML = '<tr><td colspan="6" style="color:var(--muted)">Chưa có camera.</td></tr>'; return; }
-      rows.innerHTML = d.cameras.map(c => `
-        <tr class="${c.enabled ? '' : 'master off'}" data-id="${c.id}">
-          <td class="cam">${esc(c.name)}<div class="uid">${esc(c.cam_uid)}</div></td>
-          <td><span class="badge ${c.enabled ? 'on' : 'off'}">${c.enabled ? 'ENABLED' : 'DISABLED'}</span></td>
-          ${MODS.map(m => `<td class="mod"><input type="checkbox" data-mod="${m}" ${c[m + "_enabled"] ? "checked" : ""}></td>`).join("")}
-        </tr>`).join("");
-      rows.querySelectorAll('input[type=checkbox]').forEach(cb => {
-        cb.addEventListener("change", () => save(cb.closest("tr")));
-      });
-    }
-    async function save(tr) {
-      const id = tr.dataset.id;
-      const body = {};
-      tr.querySelectorAll('input[type=checkbox]').forEach(cb => { body[cb.dataset.mod] = cb.checked; });
-      const msg = document.getElementById("msg");
-      try {
-        const r = await fetch(`/api/camera-modules/${id}`, {
-          method: "POST", credentials: "same-origin",
-          headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-        msg.textContent = r.ok ? `Đã lưu camera #${id} lúc ${new Date().toLocaleTimeString()}` : "Lỗi lưu.";
-      } catch (e) { msg.textContent = "Lỗi mạng khi lưu."; }
-    }
-    load();
-  </script>
-  </div><!-- /.page -->
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true"></div>
+        <div>
+          <h1>DCNET Camera</h1>
+          <p>Camera operations console</p>
+        </div>
+      </div>
+      <nav class="nav" aria-label="Primary">
+        <a class="nav-btn" href="/">Dashboard</a>
+        <a class="nav-btn" href="/cameras">Cameras</a>
+        <a class="nav-btn" href="/counting">Đếm ra/vào</a>
+        <a class="nav-btn" href="/groups">Nhóm theo người</a>
+        <a class="nav-btn active" href="/modules">Module camera</a>
+        <a class="nav-btn" href="/prompts">Prompts</a>
+        <a class="nav-btn" href="/live">Live View</a>
+        <a class="nav-btn" href="/settings">Settings</a>
+        <a class="nav-btn" href="/tools">Tools</a>
+      </nav>
+      <div class="sidebar-foot">
+        <form action="/auth/logout" method="post">
+          <button class="btn danger" type="submit" style="width:100%">Logout</button>
+        </form>
+      </div>
+    </aside>
+
+    <main class="main">
+      <h1>Module camera (per-customer)</h1>
+      <p class="cap">Bật/tắt module độc lập mỗi camera. Module chạy ⟺ camera <b>enabled</b> + flag bật.
+        (Registry counting/Re-ID. Camera fall-detection quản ở trang Cameras.)</p>
+      <p class="cap" style="color:#f59e0b">Hiện chỉ <b>Đếm</b> wire vào hành vi; Fall-det/Re-ID/Live là flag chuẩn bị (wire ở deploy mixed multi-customer).</p>
+      <table>
+        <thead><tr>
+          <th>Camera</th><th>Trạng thái</th>
+          <th class="mod">Đếm</th>
+          <th class="mod">Fall-det<span style="font-weight:400;color:var(--muted);font-size:.62rem;display:block">(chưa wire)</span></th>
+          <th class="mod">Re-ID<span style="font-weight:400;color:var(--muted);font-size:.62rem;display:block">(chưa wire)</span></th>
+          <th class="mod">Live<span style="font-weight:400;color:var(--muted);font-size:.62rem;display:block">(chưa wire)</span></th>
+        </tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <div id="msg"></div>
+      <script>
+        const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+        const MODS = ["counting", "fall_detection", "reid", "live"];
+        async function load() {
+          const r = await fetch("/api/camera-modules", { credentials: "same-origin" });
+          if (!r.ok) { document.getElementById("msg").textContent = "Lỗi tải dữ liệu."; return; }
+          const d = await r.json();
+          const rows = document.getElementById("rows");
+          if (!d.cameras.length) { rows.innerHTML = '<tr><td colspan="6" style="color:var(--muted)">Chưa có camera.</td></tr>'; return; }
+          rows.innerHTML = d.cameras.map(c => `
+            <tr class="${c.enabled ? '' : 'master off'}" data-id="${c.id}">
+              <td class="cam">${esc(c.name)}<div class="uid">${esc(c.cam_uid)}</div></td>
+              <td><span class="badge ${c.enabled ? 'on' : 'off'}">${c.enabled ? 'ENABLED' : 'DISABLED'}</span></td>
+              ${MODS.map(m => `<td class="mod"><input type="checkbox" data-mod="${m}" ${c[m + "_enabled"] ? "checked" : ""}></td>`).join("")}
+            </tr>`).join("");
+          rows.querySelectorAll('input[type=checkbox]').forEach(cb => {
+            cb.addEventListener("change", () => save(cb.closest("tr")));
+          });
+        }
+        async function save(tr) {
+          const id = tr.dataset.id;
+          const body = {};
+          tr.querySelectorAll('input[type=checkbox]').forEach(cb => { body[cb.dataset.mod] = cb.checked; });
+          const msg = document.getElementById("msg");
+          try {
+            const r = await fetch(`/api/camera-modules/${id}`, {
+              method: "POST", credentials: "same-origin",
+              headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+            msg.textContent = r.ok ? `Đã lưu camera #${id} lúc ${new Date().toLocaleTimeString()}` : "Lỗi lưu.";
+          } catch (e) { msg.textContent = "Lỗi mạng khi lưu."; }
+        }
+        load();
+      </script>
+    </main>
+  </div><!-- /.app -->
 </body>
 </html>
