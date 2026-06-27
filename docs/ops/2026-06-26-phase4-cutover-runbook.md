@@ -98,6 +98,14 @@ docker compose -f docker-compose.prod.yml ps
 # Expected: postgres (healthy), fall_detection_web (Up), event_collector (Up), go2rtc (Up)
 ```
 
+**A6-verify. Xác nhận fall_detection_web + go2rtc đã join `dcnet-shared`:**
+```bash
+docker network inspect dcnet-shared | grep -E '"Name"|fall_detection|go2rtc'
+# Expect: cả fall_detection_web và go2rtc container xuất hiện trong output
+# (chúng auto-join qua khai báo networks: dcnet-shared trong docker-compose.prod.yml)
+# → DCNET Caddy có thể reach chúng qua network này
+```
+
 **A7. Đổi mật khẩu admin mặc định qua UI — PHẢI làm trước flip (bước C):**
 - Truy cập staging route (thêm tạm vào Caddyfile nếu cần): `/staging/* → fall_detection_web:8090`
 - Hoặc port-forward local: `ssh -L 9090:localhost:8090 camera`
@@ -188,9 +196,11 @@ docker compose -f docker-compose.prod.yml logs event_collector | grep 'conflict'
 
 **C0. Backup Caddyfile hiện tại:**
 ```bash
-cp /etc/caddy/Caddyfile /etc/caddy/Caddyfile.pre-flip-$(date +%Y%m%d-%H%M)
-# Hoặc path Caddy của stack DCNET:
-docker exec <caddy_container> cat /etc/caddy/Caddyfile > /opt/camera/Caddyfile.pre-flip-backup
+# Phương pháp khuyến nghị (Dockerized DCNET Caddy — /etc/caddy không mount ra host):
+docker exec <caddy_container> cat /etc/caddy/Caddyfile > /opt/camera/Caddyfile.pre-flip-$(date +%Y%m%d-%H%M)
+
+# Phương pháp cp trực tiếp (chỉ dùng nếu Caddy mount /etc/caddy ra host):
+# cp /etc/caddy/Caddyfile /etc/caddy/Caddyfile.pre-flip-$(date +%Y%m%d-%H%M)
 ```
 
 **C1. Sửa Caddyfile — thay site block `camera-test.dcnet.vn`:**
@@ -228,6 +238,13 @@ camera-test.dcnet.vn {
 ```
 
 > ⚠️ **Bỏ `/staging/*` route tạm** đã thêm ở B2.
+
+**C1.5. Validate config trước khi reload (good practice):**
+```bash
+docker exec <caddy_container> caddy validate --config /etc/caddy/Caddyfile
+# Expect: "Valid configuration" — chỉ tiếp tục nếu validate PASS
+# caddy reload là atomic/fail-safe nhưng validate-first giúp bắt lỗi syntax sớm
+```
 
 **C2. Reload Caddy (zero-downtime):**
 ```bash
@@ -277,13 +294,30 @@ docker stop camera-event_collector-1
 docker compose -f /opt/camera-ai/docker-compose.prod.yml logs -f event_collector --tail=20
 ```
 
-**D3. Xóa `/cam/*` route trong Caddyfile** (nếu go2rtc đã cover live view — kiểm O4 verified):
-```bash
-# Sửa Caddyfile: uncomment hoặc xóa /cam/* route
-docker exec <caddy_container> caddy reload --config /etc/caddy/Caddyfile
-```
+**D3. `/cam/*` route trong Caddyfile — xử lý theo kết quả O4:**
 
-**D4. Dừng cam_proxy DCNET** (chỉ khi go2rtc đã verified — O4 PASS):
+> **Nhánh A — O4 PASS (go2rtc hoạt động, live view qua `/live/*` OK):**
+> Route `/cam/*` đang ĐƯỢC COMMENT OUT trong `Caddyfile.post-flip.draft` → **giữ nguyên trạng thái commented out (inactive)**. Operator có thể xóa hẳn commented block để dọn file, nhưng **KHÔNG được uncomment** — uncomment sẽ kích hoạt một route trỏ vào cam_proxy mà D4 sẽ tắt ngay sau đó.
+> ```bash
+> # Không cần sửa Caddyfile trong nhánh này.
+> # (Tùy chọn) Xóa block comment /cam/* để dọn file:
+> # nano /etc/caddy/Caddyfile   # xóa 4 dòng comment /cam/* block
+> # → validate + reload nếu có sửa:
+> # docker exec <caddy_container> caddy validate --config /etc/caddy/Caddyfile
+> # docker exec <caddy_container> caddy reload --config /etc/caddy/Caddyfile
+> ```
+> Tiếp tục D4 (dừng cam_proxy).
+
+> **Nhánh B — O4 FAIL (go2rtc không reach được RTSP 554, live view offline):**
+> KHÔNG tắt cam_proxy. Thay vào đó: uncomment `/cam/*` trong Caddyfile để dùng cam_proxy làm fallback live view, sau đó validate + reload. **Bỏ qua D4** (cam_proxy phải giữ chạy).
+> ```bash
+> # Uncomment /cam/* block trong Caddyfile (xóa dấu # ở 4 dòng handle /cam/* block)
+> docker exec <caddy_container> caddy validate --config /etc/caddy/Caddyfile
+> docker exec <caddy_container> caddy reload --config /etc/caddy/Caddyfile
+> # → SKIP D4
+> ```
+
+**D4. Dừng cam_proxy DCNET** (chỉ khi go2rtc đã verified — O4 PASS, Nhánh A ở D3):
 ```bash
 docker stop camera-cam_proxy-1
 ```
