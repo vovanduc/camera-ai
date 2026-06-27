@@ -1,7 +1,7 @@
 # Design — Phase 4: Deploy / Cutover
 
 **Ngày:** 2026-06-26
-**Trạng thái:** DESIGN (chờ review)
+**Trạng thái:** PREP DONE (artifacts + runbook — plan `../plans/2026-06-26-phase4-deploy-cutover.md`, branch `feat/phase4-deploy-prep`; VM cutover pending dcnet-deploy session)
 **Phase:** 4 / 5 (xem tổng thể: `2026-06-26-dcnet-platform-migration-design.md`)
 **Tiền đề:** Phase 0–3 DONE + merged — camera-ai chạy Postgres (incidents/users/settings/cameras/events), `event_collector` counting, UI đếm/live/group đủ parity Streamlit, modular per-camera toggles.
 **Nguồn prod hiện tại:** repo `dcnet-cloud/camera`, `docker-compose.prod.yml`, `docs/ops/camera-state.yml`.
