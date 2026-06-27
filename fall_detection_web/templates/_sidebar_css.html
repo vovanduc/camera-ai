@@ -64,6 +64,19 @@
   .brand h1 { font-size: 17px; letter-spacing: 0; }
   .brand p { color: var(--muted); font-size: 12px; margin-top: 2px; }
 
+  /* SVG icon styling (ported from index.html line 95) — without this, injected
+     sidebar icons have no size/stroke and render invisible. */
+  .brand-mark svg, .nav-btn svg {
+    width: 20px;
+    height: 20px;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    flex: 0 0 auto;
+  }
+
   .nav {
     display: grid;
     gap: 6px;
