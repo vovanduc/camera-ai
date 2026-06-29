@@ -231,6 +231,18 @@ def init_db() -> None:
         # Seed: cam Axis = đếm + live (idempotent, SET true an toàn re-run)
         conn.execute("UPDATE cameras SET counting_enabled=true, live_enabled=true "
                      "WHERE cam_uid='B8A44F4627CE'")
+        # ── Dual-counting test: baseline reset + cấu hình vạch YOLO per-camera ──
+        conn.execute(
+            "ALTER TABLE cameras ADD COLUMN IF NOT EXISTS yolo_counting JSONB "
+            "NOT NULL DEFAULT '{}'::jsonb"
+        )
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS counting_baseline (
+                cam_id    INT PRIMARY KEY REFERENCES cameras(id),
+                reset_ts  TIMESTAMPTZ NOT NULL,
+                baseline  INT NOT NULL CHECK (baseline >= 0)
+            )
+        """)
 
 
 def now_iso() -> str:
