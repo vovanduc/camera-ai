@@ -19,6 +19,7 @@ from urllib.parse import quote
 
 import psycopg
 from psycopg.rows import dict_row
+from psycopg.types.json import Json
 from psycopg_pool import ConnectionPool
 
 ROOT = Path(__file__).resolve().parent
@@ -750,6 +751,92 @@ def counting_crossings(day: date, cam_id: int | None = None) -> list[dict[str, A
     with get_conn() as conn:
         rows = conn.execute(sql, tuple(params)).fetchall()
     return [{"ts": r["ts"], "direction": r["direction"]} for r in rows]
+
+
+_SOURCE_TYPE = {"yolo": "counter_yolo", "axis": "counter"}
+
+_VN_TODAY = ("(e.ts AT TIME ZONE 'Asia/Ho_Chi_Minh')::date "
+             "= (now() AT TIME ZONE 'Asia/Ho_Chi_Minh')::date")
+
+
+def insert_counting_event(cam_id: int, direction: str, ts: datetime,
+                          source: str = "yolo", track_id: str | None = None) -> None:
+    """Ghi 1 crossing vào bảng events (dùng cho YOLO; source='axis' nếu cần)."""
+    etype = _SOURCE_TYPE.get(source, "counter_yolo")
+    axis_obj = f"yolo-{track_id}" if track_id is not None else None
+    with get_conn() as conn:
+        conn.execute(
+            "INSERT INTO events (cam_id, ts, type, direction, axis_object_id, payload) "
+            "VALUES (%s, %s, %s, %s, %s, %s)",
+            (cam_id, ts, etype, direction, axis_obj,
+             Json({"source": source, "track_id": track_id})),
+        )
+
+
+def counting_block(cam_id: int, source: str, since_ts: datetime | None = None,
+                   baseline_in: int = 0) -> dict[str, int]:
+    """IN/OUT/occupancy hôm nay VN cho 1 nguồn (counter | counter_yolo), 1 camera."""
+    import counting as _counting
+    etype = _SOURCE_TYPE.get(source, "counter_yolo")
+    where = f"e.cam_id = %s AND e.type = %s AND {_VN_TODAY}"
+    params: list[Any] = [cam_id, etype]
+    if since_ts is not None:
+        where += " AND e.ts > %s"
+        params.append(since_ts)
+    sql = (
+        "SELECT COUNT(*) FILTER (WHERE e.direction = 'in')  AS ins, "
+        "COUNT(*) FILTER (WHERE e.direction = 'out') AS outs "
+        f"FROM events e WHERE {where}"
+    )
+    with get_conn() as conn:
+        row = conn.execute(sql, tuple(params)).fetchone()
+    return _counting.block_from_counts(int(row["ins"] or 0), int(row["outs"] or 0), baseline_in)
+
+
+def get_counting_baseline(cam_id: int) -> dict[str, Any] | None:
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT reset_ts, baseline FROM counting_baseline WHERE cam_id = %s",
+            (cam_id,),
+        ).fetchone()
+    return {"reset_ts": row["reset_ts"], "baseline": int(row["baseline"])} if row else None
+
+
+def set_counting_baseline(cam_id: int, reset_ts: datetime, baseline: int) -> None:
+    with get_conn() as conn:
+        conn.execute(
+            "INSERT INTO counting_baseline (cam_id, reset_ts, baseline) VALUES (%s, %s, %s) "
+            "ON CONFLICT (cam_id) DO UPDATE SET reset_ts = EXCLUDED.reset_ts, "
+            "baseline = EXCLUDED.baseline",
+            (cam_id, reset_ts, max(0, int(baseline))),
+        )
+
+
+def get_yolo_counting(cam_id: int) -> dict[str, Any]:
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT yolo_counting FROM cameras WHERE id = %s", (cam_id,)
+        ).fetchone()
+    return dict(row["yolo_counting"]) if row and row["yolo_counting"] else {}
+
+
+def set_yolo_counting(cam_id: int, cfg: dict[str, Any]) -> None:
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE cameras SET yolo_counting = %s WHERE id = %s",
+            (Json(cfg), cam_id),
+        )
+
+
+def list_yolo_counting_cameras() -> list[dict[str, Any]]:
+    """Cameras active có yolo_counting.enabled = true (cho engine đếm YOLO)."""
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT id, name, rtsp_url, go2rtc_src, yolo_counting FROM cameras "
+            "WHERE enabled = true AND COALESCE((yolo_counting->>'enabled')::bool, false) = true "
+            "ORDER BY id"
+        ).fetchall()
+    return [dict(r) for r in rows]
 
 
 # ── Re-ID groups (Phase 2, read-only; worker ghi) ──
