@@ -70,11 +70,18 @@ async def lifespan(app: FastAPI):
         logger.warning("Skipping auto-start monitor: %s", exc)
     except Exception as exc:
         logger.error("Could not auto-start monitor: %s", exc)
-        
+
+    # Auto-start engine đếm YOLO (độc lập với monitor fall-detect)
+    try:
+        monitor.start_counting(current_config)
+    except Exception as exc:
+        logger.error("Could not auto-start counting engine: %s", exc)
+
     yield
     # Shutdown
     monitor.stop_local_clips_maintenance(wait=True)
     monitor.stop_monitor(wait=True)
+    monitor.stop_counting(wait=True)
 
 
 app = FastAPI(title="Fall Detection Web", lifespan=lifespan)
@@ -586,6 +593,10 @@ def _refresh_monitor_after_camera_change() -> str:
     edits and module toggles take effect immediately. Returns a status word."""
     updated = config.read_config()
     monitor.schedule_uploaded_local_clips_cleanup(updated, reason="cameras_saved")
+    try:
+        monitor.restart_counting(updated)
+    except Exception as exc:
+        logger.warning("counting engine restart failed: %s", exc)
     if monitor.read_state().get("running"):
         monitor.restart_monitor(updated)
         return "restarted"
