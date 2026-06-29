@@ -24,14 +24,17 @@ Spec gốc (dưới) viết khi chưa đọc `monitor.py`/`config.py`/`cameras.h
 ### Lưu ý vận hành:
 - **Auto-register default:** camera được `event_collector` tự đăng ký từ MQTT topic sẽ có `enabled=true` nhưng `counting_enabled=false` — các crossing của cam đó bị loại khỏi JOIN đếm một cách im lặng cho đến khi toggle bật tại `/modules`.
 
-### DEFERRED (wire khi có deploy mixed multi-customer thật — disjoint + greenfield nên chưa cần):
-- §2.4/§2.5/§4.3/§5.h settings-JSON ↔ cameras-table merge + migration script (không có data).
-- §5.b monitor.py rewire (`cfg["cameras"]` → DB query) — đòi registry merge trước.
-- §5.c config.py xóa `cameras` key — đòi merge.
+### ✅ ĐÃ ĐÓNG (PR #7 — registry hợp nhất, 2026-06-29):
+- §2.4/§2.5/§4.3/§5.h settings-JSON ↔ cameras-table merge + migration script — **DONE:** bảng `cameras` là nguồn duy nhất, `migrate_cameras_to_table()` migrate 1 lần lúc boot (idempotent, match theo tên).
+- §5.b monitor.py rewire (`cfg["cameras"]` → DB query) — **DONE:** đọc cameras từ bảng, YOLO chạy ⟺ `enabled AND fall_detection_enabled`.
+- §5.c config.py xóa `cameras` key — **DONE:** `read_config()` đọc từ bảng, `write_config()` không ghi key `cameras` (chống split-brain).
+- 1 trang `/cameras` quản mọi cam (4 module pill); `/modules` → redirect `/cameras`.
+
+### DEFERRED (vẫn chưa wire):
 - §5.g reid_worker flag-gate — shelved; `reid_enabled` là gate check KHI activate, không sửa code shelved.
 - §2.6 per-cam config override — N/A.
 
-Phần dưới = spec gốc (giữ để tham chiếu; mục bị defer đã liệt kê trên).
+Phần dưới = spec gốc (giữ để tham chiếu; mục bị defer/đóng đã liệt kê trên).
 
 ---
 **Phase:** 3 / 5 (xem tổng thể: `2026-06-26-dcnet-platform-migration-design.md`)
