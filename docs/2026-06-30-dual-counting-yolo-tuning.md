@@ -107,7 +107,9 @@ ROI crop+3x thấy người Ở CỬA : 56%   (+13%)
 
 **KHÔNG phải bug.** Tỉ lệ in/out giống hệt: Axis 114/87=**1.31**, YOLO 17/13=**1.31** → logic crossing đúng, YOLO chỉ là mẫu ~15%. Lệch vì **2 vạch ở 2 vị trí vật lý khác nhau** (xác nhận bằng snapshot): 📷 Axis đếm tại **cửa kính** (xa); 🤖 YOLO đếm tại **vạch giữa phòng y=52%** (đặt đó vì cửa quá xa). Người qua cửa trước → tới vạch giữa phòng sau vài giây (lag ~1 phút), nhiều người không bao giờ chạm vạch giữa → YOLO 15%. ⚠️ Số hôm nay **bẩn** (restart engine nhiều lần khi test). ⚠️ Axis chưa chắc ground-truth (cụm in/out liên tục = có thể nhiễu). ⚠️ RTSP camera **burn sẵn overlay analytics** vào stream → YOLO detect trên frame đã có box/icon.
 
-**Quyết định (user, 2026-06-30): Option 1 — 2 cam SO CÙNG VẠCH ở cửa.** Ràng buộc: **không được detect người ngoài cửa** (lobby "Lầu 2" sau kính). Cách làm: bật ROI crop vùng cửa (loại vùng ngoài kính khỏi detect) + đặt vạch YOLO trùng vạch Axis. Đánh đổi đã biết: choke xa, recall ~56% — cần yolov8s + imgsz cao.
+**Quyết định (user, 2026-06-30): Option 1 — 2 cam SO CÙNG VẠCH.** Ràng buộc: **không đếm người ngoài cửa** (lobby "Lầu 2" sau kính).
+
+> **🔧 ĐÍNH CHÍNH sau khi calibrate bằng preview (cùng ngày):** Giả thuyết "Axis đếm ở cửa kính xa" ở trên **SAI**. Preview dùng frame go2rtc (có overlay Axis burned-in) cho thấy **vạch Axis nằm ở ~y50% GIỮA PHÒNG** (vạch xanh YOLO khít giữa 2 icon ↓/↑ Axis), KHÔNG ở cửa kính. Ảnh snapshot "người ở cửa" trước đó chỉ do **latency fetch** (event_collector chụp go2rtc sau khi MQTT bắn → người đã đi sâu vào phòng). → **KHÔNG cần ROI** cho cam này: chỉ canh vạch YOLO trùng y50% giữa phòng (`line_y=50, x[38,72]`). Vùng người TO, detect dễ (yolov8s@640, conf 0.85+); người ngoài kính ở trên vạch nên không chạm → tự thoả ràng buộc. ROI/imgsz↑/model↑ chỉ cần cho cam mà choke THẬT SỰ ở xa. Config live chốt xem §6.
 
 ## 6c. Preview calibrate vạch (DONE 2026-06-30) — `GET /api/counting/preview/{name}`
 
@@ -190,3 +192,29 @@ Global detect `imgsz=640/conf=0.5` **MISS người xa** (live `people=0` dù có
 - Nhập **Telegram token** → alert gửi thật.
 - Cân nhắc **preview vẽ `ignore_zones`** lên frame (như `counting_preview` §6c) để đặt vùng trực quan thay gõ số.
 - Tuning `yolo_imgsz`/`confidence` cho cam này (xem §9.6) — chưa làm.
+
+---
+
+## 10. Tóm tắt thay đổi (cho PR `feat/dual-counting-ui-yolo-tuning` → main)
+
+**6 commit:**
+| Commit | Nội dung |
+|---|---|
+| `2c90c23` | UI log đếm 2 cột Axis/YOLO + popup; notes tuning (base session trước) |
+| `e67351e` | **ROI zoom-zone** per-cam (crop trước detect, line-crossing theo toạ độ crop) + per-cam `imgsz`; bỏ upscale thủ công (no-op) |
+| `65ea3a5` | **Per-cam `model`/`imgsz`/`conf`** override global; model có **allowlist cứng** (chặn path/URL) |
+| `41caf46` | **Preview calibrate** `GET /api/counting/preview/{name}` (vẽ ROI+vạch+box) + chẩn đoán Axis-vs-YOLO |
+| `9d194cf` | **Fix bug**: decorator `@app.post` gắn nhầm `_build_yolo_cfg` → lưu vạch no-op (regression từ 41caf46) |
+| `7fc6aa1`+ | docs |
+
+**Files đụng (counting):** `monitor.py` (`_counting_loop` ROI/per-cam resolve, `counting_preview`), `app.py` (`_build_yolo_cfg`, endpoints yolo-config + preview, `_YOLO_MODEL_ALLOWLIST`), `templates/camera_detail.html` (form ROI/model/imgsz/conf + nút Xem trước), `docs/`. Schema `yolo_counting` JSONB **không đổi cột** (chỉ thêm key tuỳ chọn) → không cần migration.
+
+**Đã verify:** rebuild + live — engine boot đúng per-cam config (`yolov8s imgsz=640 line_y=50 x=[38,72]`), loop không crash; preview trả JPEG overlay đúng hình học; allowlist chặn `../../etc/passwd`→400; save persist DB + restart (sau fix 9d194cf); reset baseline OK.
+
+**⚠️ CHƯA xong / mở (không block merge, là việc tiếp theo):**
+1. **So sánh độ chính xác CHƯA chốt** — cần chạy 1 config cố định ≥30 phút KHÔNG restart rồi so tổng IN/OUT (số trong ngày test bẩn vì restart nhiều).
+2. **ROI live recall** (số 56% §4C) chưa tái đo — cam này không cần ROI (vạch giữa phòng), nhưng cơ chế ROI cho cam choke-xa khác chưa proven live.
+3. **Per-cam model** xong; **per-cam tracker (bytetrack/botsort)** + **zone/polygon** vẫn ⬜.
+4. yolov8s@640 full-FPS nặng CPU hơn n@640 — theo dõi prod.
+
+**Lưu ý vận hành (mang sang prod):** config live nằm trong **Postgres** (cột `cameras.yolo_counting`), KHÔNG trong git. §9 (AI Vision) là session song song, độc lập engine đếm.
