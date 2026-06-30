@@ -225,11 +225,17 @@
     .count-cfg input[type=number] { width: 72px; }
     .count-reset { grid-column: span 2; display: flex; align-items: center; gap: 8px; margin-top: 4px; }
     .count-reset .k { font-size: 12px; color: var(--muted); flex: 1; }
-    .count-log { grid-column: span 2; display:flex; flex-direction:column; gap:6px; max-height:320px; overflow-y:auto; }
+    .count-log { grid-column: span 2; display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    .count-log .col { display:flex; flex-direction:column; min-width:0; }
+    .count-log .col-head { font-size:13px; font-weight:700; padding:4px 0; border-bottom:1px solid var(--line); position:sticky; top:0; background:var(--surface,#0d1117); z-index:1; }
+    .count-log .col-list { display:flex; flex-direction:column; gap:6px; max-height:320px; overflow-y:auto; }
+    .count-log .empty { color:var(--muted); font-size:12px; padding:8px 0; }
     .count-log .row { display:flex; align-items:center; gap:10px; font-size:13px; padding:4px 0; border-bottom:1px solid var(--line); }
-    .count-log img { width:64px; height:40px; object-fit:cover; border-radius:4px; cursor:pointer; }
+    .count-log img { width:64px; height:40px; object-fit:cover; border-radius:4px; cursor:pointer; transition:transform .15s ease; }
+    .count-log img:hover { transform:scale(1.08); }
     .count-log .src-axis { color:#378ADD; } .count-log .src-yolo { color:#EF9F27; }
     .count-log .dir-in { color: var(--good,#3fb950); } .count-log .dir-out { color: var(--bad,#f85149); }
+    @media (max-width:640px){ .count-log{ grid-template-columns:1fr; } }
 
     .toolbar { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
     select, input {
@@ -807,12 +813,22 @@
         const d = await api(`/api/counting/camera/${encodeURIComponent(routeCameraName)}`);
         setCountVal("camIn", d.camera.in);  setCountVal("camOut", d.camera.out);  setCountVal("camOcc", d.camera.occupancy);
         setCountVal("yoloIn", d.yolo.in);   setCountVal("yoloOut", d.yolo.out);   setCountVal("yoloOcc", d.yolo.occupancy);
-        const log = (d.log || []).map(e => `<div class="row">
-          <span style="width:64px">${e.snap_url ? `<img src="${e.snap_url}" onclick="window.open('${e.snap_url}')">` : "—"}</span>
-          <span class="src-${e.source}" style="width:120px">${e.source === "yolo" ? "🤖 YOLO" : "📷 Camera"}</span>
+        const rowHtml = (e) => `<div class="row">
+          <span style="width:64px">${e.snap_url ? `<img src="${e.snap_url}" data-snap="${e.snap_url}" data-title="${e.source === "yolo" ? "🤖 YOLO" : "📷 Camera"} · ${e.direction === "in" ? "VÀO" : "RA"} · ${e.time}">` : "—"}</span>
           <span class="dir-${e.direction}" style="width:60px">${e.direction === "in" ? "VÀO" : "RA"}</span>
-          <span style="color:var(--muted)">${e.time}</span></div>`).join("");
-        const el = document.getElementById("countLog"); if (el) el.innerHTML = log || `<div style="color:var(--muted);font-size:12px">Chưa có lượt nào hôm nay.</div>`;
+          <span style="color:var(--muted)">${e.time}</span></div>`;
+        const col = (rows, emptyTxt) => rows.length ? rows.map(rowHtml).join("") : `<div class="empty">${emptyTxt}</div>`;
+        const axis = (d.log || []).filter(e => e.source !== "yolo");
+        const yolo = (d.log || []).filter(e => e.source === "yolo");
+        const el = document.getElementById("countLog");
+        if (el) {
+          el.innerHTML = `
+            <div class="col"><div class="col-head src-axis">📷 Camera (Axis)</div><div class="col-list">${col(axis, "Chưa có lượt nào hôm nay.")}</div></div>
+            <div class="col"><div class="col-head src-yolo">🤖 YOLO (máy local)</div><div class="col-list">${col(yolo, "Chưa có lượt nào hôm nay.")}</div></div>`;
+          el.querySelectorAll("img[data-snap]").forEach(img => {
+            img.onclick = () => showViewer(img.dataset.title, img.dataset.snap, "image");
+          });
+        }
         // nạp cấu hình vạch hiện tại từ camera (chỉ khi form chưa mở để khỏi đè khi đang sửa)
         const cfg = (state.camera && state.camera.yolo_counting) || {};
         const det = document.querySelector(".count-cfg");
@@ -1218,6 +1234,7 @@
 
     $("openViewerBtn").onclick = () => { if (state.viewerUrl) window.open(state.viewerUrl, "_blank"); };
     $("viewerDialog").addEventListener("close", () => { $("viewerBody").innerHTML = ""; });
+    $("viewerDialog").addEventListener("click", (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
 
     $("startBtn").onclick = () => monitorAction("/api/start").catch(err => showToast(err.message, "err"));
     $("stopBtn").onclick = () => monitorAction("/api/stop").catch(err => showToast(err.message, "err"));
