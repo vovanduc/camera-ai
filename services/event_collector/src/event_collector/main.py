@@ -114,8 +114,13 @@ async def _save_axis_snapshot(repo: Repo, cam_id: int, ev_id: int, direction: st
         snaps = os.environ.get("COUNTING_SNAPS_DIR", "/app/data/counting_snaps")
         os.makedirs(snaps, exist_ok=True)
         url = f"{base.rstrip('/')}/api/frame.jpeg?src={src}"
+        # go2rtc grab on-demand: nếu producer RTSP đang nguội (không consumer),
+        # lần đầu có thể 500 do chưa kịp keyframe → retry 1 lần sau warm-up.
         async with httpx.AsyncClient(timeout=5) as cli:
             r = await cli.get(url)
+            if r.status_code != 200:
+                await asyncio.sleep(0.4)
+                r = await cli.get(url)
         if r.status_code == 200 and r.content:
             ts = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%f')
             fname = f"{ts}_axis_{direction}.jpg"
