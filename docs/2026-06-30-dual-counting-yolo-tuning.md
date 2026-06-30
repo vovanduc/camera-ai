@@ -98,8 +98,8 @@ ROI crop+3x thấy người Ở CỬA : 56%   (+13%)
 
 ## 6. Config LIVE hiện tại (cam "Cửa cty HCM")
 
-- `cameras.yolo_counting = {enabled:true, line_y:52, x_start:30, x_end:80, min_disp:6, invert:false}`
-- `settings.confidence = 0.3`, `settings.yolo_imgsz = 640`, `yolo_model = yolov8n.pt`
+- `cameras.yolo_counting = {enabled:true, line_y:52, x_start:30, x_end:80, min_disp:6, invert:false}` (model/imgsz/conf rỗng → dùng global)
+- `settings.confidence = 0.3`, `settings.yolo_imgsz = 640`, `yolo_model = yolov8n.pt` (global default; per-cam override trong `yolo_counting`)
 - Engine chạy (đã restart). Chờ người đi qua dải y=52% → ghi `counter_yolo` + thumbnail cột phải.
 - ⚠️ Probe offline dùng yolov8s/960 OK, nhưng **full-FPS live nặng CPU** — live nên giữ n@640, hoặc giảm FPS xử lý.
 
@@ -109,7 +109,7 @@ ROI crop+3x thấy người Ở CỬA : 56%   (+13%)
    - ⚠️ **`upscale` thủ công ĐÃ BỎ (cố ý).** YOLO letterbox input về `imgsz` trước inference → cv2-upscale crop rồi YOLO co lại = no-op, chỉ tốn CPU. **Đòn bẩy thật = `imgsz` so với kích thước crop**, nên expose **per-cam `imgsz`** (0=dùng global) thay vì upscale factor — knob này sống tới network. Gộp luôn §7.3 (phần imgsz).
    - ⚠️ **Số 56% (§4C) CHƯA tái đo trên path live** — probe cũ ở scratchpad đã mất (session-specific). Cơ chế ROI đúng; cần đi qua vạch thật để confirm recall. Model vẫn global (chỉ imgsz per-cam).
 2. **Zone/polygon counting** thay line ngang — robust góc nghiêng.
-3. ✅ **Per-cam imgsz DONE** (cùng item 1). ⬜ **Per-cam model** vẫn chưa (cam khó dùng `s`, cam dễ dùng `n`) — `yolo_model` còn global.
+3. ✅ **Per-cam model/imgsz/conf DONE (2026-06-30)** — **mọi knob đếm giờ nằm trong `yolo_counting`** (dễ tuỳ chỉnh từng cam): `model`/`imgsz`/`conf` override global khi set (rỗng/0 = dùng global từ `settings`). `_counting_loop` resolve per-cam ở đầu loop. Cam khó → `yolov8s@960`, cam dễ → `yolov8n@640` tiết kiệm CPU. **Model có allowlist cứng** (`_YOLO_MODEL_ALLOWLIST` trong app.py — `YOLO(name)` nạp file nên chặn path/URL tuỳ ý; verify: `model="../../etc/passwd"` → 400). Form: dropdown model + 2 ô imgsz/conf trong block YOLO. Đổi 3 knob này vẫn cần lưu (→ `restart_counting`).
 4. **Nhập `ai_api_key`** (+ telegram token) → AI Vision verify (fall/stroke) chạy thật, hết log spam. Model vision đề xuất: `claude-opus-4-8` qua router 9router (OpenAI-compat).
 5. **"Nhận diện người ngoài cty"** = face recognition (ArcFace/InsightFace + pgvector), **KHÔNG phải vision LLM** — dùng lại `services/reid_worker/` (Phase 2, shelved vì license non-commercial + cam placement). Dự án riêng.
 

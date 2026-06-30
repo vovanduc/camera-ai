@@ -1268,9 +1268,21 @@ def _counting_loop(camera: dict[str, Any], line_cfg: dict[str, Any]) -> None:
         return
 
     cfg = read_config()
-    model = YOLO(cfg["yolo_model"])
-    imgsz = int(cfg["yolo_imgsz"])
-    conf = float(cfg["confidence"])
+    g_model = str(cfg["yolo_model"])
+    g_imgsz = int(cfg["yolo_imgsz"])
+    g_conf = float(cfg["confidence"])
+    # Per-cam override (knob đếm nằm hết trong yolo_counting cho dễ tuỳ chỉnh từng cam):
+    # model/imgsz/conf rỗng/0 → dùng global.
+    model_name = str(line_cfg.get("model") or g_model)
+    model = YOLO(model_name)
+    try:
+        imgsz = int(line_cfg["imgsz"]) if line_cfg.get("imgsz") else g_imgsz
+    except (TypeError, ValueError):
+        imgsz = g_imgsz
+    try:
+        conf = float(line_cfg["conf"]) if line_cfg.get("conf") else g_conf
+    except (TypeError, ValueError):
+        conf = g_conf
 
     line_y_pct = float(line_cfg.get("line_y", 50))
     x_start = float(line_cfg.get("x_start", 0))
@@ -1285,21 +1297,18 @@ def _counting_loop(camera: dict[str, Any], line_cfg: dict[str, Any]) -> None:
     roi_y1 = float(line_cfg.get("roi_y1", 0))
     roi_x2 = float(line_cfg.get("roi_x2", 100))
     roi_y2 = float(line_cfg.get("roi_y2", 100))
-    # imgsz per-cam (đòn bẩy thật cho choke xa): override global khi có. cv2-upscale
-    # bỏ đi cố ý — YOLO letterbox về imgsz nên upscale thủ công là no-op.
-    try:
-        track_imgsz = int(line_cfg["imgsz"]) if line_cfg.get("imgsz") else imgsz
-    except (TypeError, ValueError):
-        track_imgsz = imgsz
+    # imgsz là đòn bẩy thật cho choke xa (đã resolve per-cam ở trên). cv2-upscale bỏ
+    # cố ý — YOLO letterbox về imgsz nên upscale thủ công là no-op.
 
     track_sides: dict[int, str] = {}
     cap = cv2.VideoCapture(rtsp_url)
     cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
     consecutive_failures = 0
     last_reconnect_log = 0.0
-    logger.info("[COUNT] start camera=%s line_y=%.0f%% x=[%.0f,%.0f]%% min_disp=%.0f%% invert=%s "
-                "imgsz=%d roi=%s",
-                cam_name, line_y_pct, x_start, x_end, min_disp_pct, invert, track_imgsz,
+    logger.info("[COUNT] start camera=%s model=%s imgsz=%d conf=%.2f line_y=%.0f%% "
+                "x=[%.0f,%.0f]%% min_disp=%.0f%% invert=%s roi=%s",
+                cam_name, model_name, imgsz, conf, line_y_pct, x_start, x_end,
+                min_disp_pct, invert,
                 ("[%.0f,%.0f,%.0f,%.0f]" % (roi_x1, roi_y1, roi_x2, roi_y2)) if roi_enabled else "off")
     try:
         while not counting_stop_event.is_set():
@@ -1336,7 +1345,7 @@ def _counting_loop(camera: dict[str, Any], line_cfg: dict[str, Any]) -> None:
             band = min_disp_pct / 100.0 * h
 
             results = model.track(det_frame, persist=True, classes=[0], conf=conf,
-                                  imgsz=track_imgsz, verbose=False)
+                                  imgsz=imgsz, verbose=False)
             seen_ids: set[int] = set()
             for result in results:
                 boxes = result.boxes

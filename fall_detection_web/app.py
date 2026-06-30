@@ -244,6 +244,13 @@ def counting_snap(filename: str, _: str = Depends(auth.require_auth)):
                         headers={"Cache-Control": "private, max-age=86400, immutable"})
 
 
+# Allowlist model YOLO cho per-cam override (YOLO(name) nạp file weights).
+_YOLO_MODEL_ALLOWLIST = {
+    "yolov8n.pt", "yolov8s.pt", "yolov8m.pt", "yolov8l.pt", "yolov8x.pt",
+    "yolo11n.pt", "yolo11s.pt", "yolo11m.pt", "yolo11l.pt", "yolo11x.pt",
+}
+
+
 @app.post("/api/counting/yolo-config/{camera_name:path}")
 def api_counting_yolo_config(camera_name: str, payload: dict[str, Any] = Body(...),
                              _: str = Depends(auth.require_auth)):
@@ -284,6 +291,21 @@ def api_counting_yolo_config(camera_name: str, payload: dict[str, Any] = Body(..
     if raw_imgsz not in (None, "", 0, "0"):
         try:
             cfg["imgsz"] = max(64, min(1920, int(raw_imgsz)))
+        except (TypeError, ValueError):
+            pass
+
+    # model per-cam — allowlist cứng (YOLO(name) nạp file → chặn path/URL tuỳ ý).
+    raw_model = str(payload.get("model") or "").strip()
+    if raw_model:
+        if raw_model not in _YOLO_MODEL_ALLOWLIST:
+            raise HTTPException(status_code=400, detail=f"model không hợp lệ: {raw_model}")
+        cfg["model"] = raw_model
+
+    # conf per-cam — override global khi >0, clamp (0,1].
+    raw_conf = payload.get("conf")
+    if raw_conf not in (None, "", 0, "0"):
+        try:
+            cfg["conf"] = max(0.01, min(1.0, float(raw_conf)))
         except (TypeError, ValueError):
             pass
 
