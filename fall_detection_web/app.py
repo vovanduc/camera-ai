@@ -251,7 +251,6 @@ _YOLO_MODEL_ALLOWLIST = {
 }
 
 
-@app.post("/api/counting/yolo-config/{camera_name:path}")
 def _build_yolo_cfg(payload: dict[str, Any]) -> dict[str, Any]:
     """Dựng + validate yolo_counting từ payload/query. Raise HTTPException nếu sai.
     Dùng chung cho POST (lưu DB) và preview (vẽ thử)."""
@@ -309,6 +308,7 @@ def _build_yolo_cfg(payload: dict[str, Any]) -> dict[str, Any]:
     return cfg
 
 
+@app.post("/api/counting/yolo-config/{camera_name:path}")
 def api_counting_yolo_config(camera_name: str, payload: dict[str, Any] = Body(...),
                              _: str = Depends(auth.require_auth)):
     cam_id, _camera = _cam_id_by_name(camera_name)
@@ -316,6 +316,38 @@ def api_counting_yolo_config(camera_name: str, payload: dict[str, Any] = Body(..
     db.set_yolo_counting(cam_id, cfg)
     monitor.restart_counting(config.read_config())
     return {"ok": True, "yolo_counting": cfg}
+
+
+@app.post("/api/camera/verify-crop/{camera_name:path}")
+def api_verify_crop_config(camera_name: str, payload: dict[str, Any] = Body(...),
+                           _: str = Depends(auth.require_auth)):
+    """Bật/tắt crop ảnh đưa AI vào người (conf cao nhất) + padding, per-camera.
+
+    padding = fraction của w/h bbox (0–1). Chỉ ảnh AI bị crop; ảnh
+    log/Telegram/snapshot live giữ full frame (xem monitor._monitor_loop).
+    """
+    cam_id, _camera = _cam_id_by_name(camera_name)
+    try:
+        padding = float(payload.get("padding", 0.15))
+    except (TypeError, ValueError):
+        padding = 0.15
+    # Vùng loại trừ: list [x1,y1,x2,y2] (%) — bỏ detect trong TV/màn hình.
+    zones = []
+    for z in (payload.get("ignore_zones") or []):
+        try:
+            x1, y1, x2, y2 = (min(100.0, max(0.0, float(v))) for v in z)
+        except (TypeError, ValueError):
+            continue
+        if x2 > x1 and y2 > y1:
+            zones.append([x1, y1, x2, y2])
+    cfg = {
+        "enabled": bool(payload.get("enabled", False)),
+        "padding": min(1.0, max(0.0, padding)),
+        "ignore_zones": zones,
+    }
+    db.set_verify_crop(cam_id, cfg)
+    _refresh_monitor_after_camera_change()
+    return {"ok": True, "verify_crop": cfg}
 
 
 @app.get("/api/counting/preview/{camera_name:path}")

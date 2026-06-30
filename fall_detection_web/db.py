@@ -239,6 +239,12 @@ def init_db() -> None:
             "ALTER TABLE cameras ADD COLUMN IF NOT EXISTS yolo_counting JSONB "
             "NOT NULL DEFAULT '{}'::jsonb"
         )
+        # ── Verify-crop: crop khung verify vào người (conf cao nhất) + padding ──
+        # Chỉ ảnh đưa AI bị crop; ảnh log/Telegram/snapshot live giữ full frame.
+        conn.execute(
+            "ALTER TABLE cameras ADD COLUMN IF NOT EXISTS verify_crop JSONB "
+            "NOT NULL DEFAULT '{}'::jsonb"
+        )
         conn.execute("""
             CREATE TABLE IF NOT EXISTS counting_baseline (
                 cam_id    INT PRIMARY KEY REFERENCES cameras(id),
@@ -858,6 +864,14 @@ def set_yolo_counting(cam_id: int, cfg: dict[str, Any]) -> None:
     with get_conn() as conn:
         conn.execute(
             "UPDATE cameras SET yolo_counting = %s WHERE id = %s",
+            (Json(cfg), cam_id),
+        )
+
+
+def set_verify_crop(cam_id: int, cfg: dict[str, Any]) -> None:
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE cameras SET verify_crop = %s WHERE id = %s",
             (Json(cfg), cam_id),
         )
 

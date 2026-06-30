@@ -93,6 +93,51 @@ def camera_snapshot_path(index: int) -> Path:
     return DATA_DIR / f"camera_{index}.jpg"
 
 
+def box_zone_overlap(box, zone) -> float:
+    """Fraction diện tích box nằm trong zone (cả 2 = (x1,y1,x2,y2) px)."""
+    ix1, iy1 = max(box[0], zone[0]), max(box[1], zone[1])
+    ix2, iy2 = min(box[2], zone[2]), min(box[3], zone[3])
+    inter = max(0, ix2 - ix1) * max(0, iy2 - iy1)
+    barea = max(1.0, (box[2] - box[0]) * (box[3] - box[1]))
+    return inter / barea
+
+
+def ignore_zones_px(crop_cfg: dict, frame_w: int, frame_h: int) -> list:
+    """ignore_zones lưu dạng % [x1,y1,x2,y2] → px. Bỏ zone không hợp lệ."""
+    out = []
+    for z in (crop_cfg.get("ignore_zones") or []):
+        try:
+            if len(z) != 4:
+                continue
+            out.append([z[0] / 100 * frame_w, z[1] / 100 * frame_h,
+                        z[2] / 100 * frame_w, z[3] / 100 * frame_h])
+        except Exception:
+            continue
+    return out
+
+
+def crop_person_with_padding(frame, xyxy, padding: float):
+    """Crop frame quanh bbox người + padding (fraction của w/h bbox), clamp biên.
+
+    xyxy = (x1,y1,x2,y2) toạ độ trên frame gốc (Ultralytics trả theo frame
+    bất kể imgsz). Trả crop hoặc None nếu bbox không hợp lệ.
+    """
+    try:
+        h, w = frame.shape[:2]
+        x1, y1, x2, y2 = (float(v) for v in xyxy)
+        bw, by = x2 - x1, y2 - y1
+        if bw <= 0 or by <= 0:
+            return None
+        px, py = bw * padding, by * padding
+        x1 = max(0, int(x1 - px)); y1 = max(0, int(y1 - py))
+        x2 = min(w, int(x2 + px)); y2 = min(h, int(y2 + py))
+        if x2 <= x1 or y2 <= y1:
+            return None
+        return frame[y1:y2, x1:x2]
+    except Exception:
+        return None
+
+
 def capture_rtsp_snapshot(rtsp_url: str, output_path: Path) -> Path:
     import cv2
     if not rtsp_url:
@@ -1050,9 +1095,10 @@ def _monitor_loop(config: dict[str, Any]) -> None:
                 now = time.time()
                 person_detected = False
                 best_confidence = 0.0
+                best_box_xyxy = None
                 person_count = 0
                 infer_start = time.perf_counter()
-                
+
                 results = model.predict(
                     frame,
                     verbose=False,
@@ -1060,12 +1106,26 @@ def _monitor_loop(config: dict[str, Any]) -> None:
                     imgsz=int(config["yolo_imgsz"]),
                     classes=[0],
                 )
+                # Vùng loại trừ (TV/màn hình hiển thị người) — bỏ box overlap >50%.
+                fh, fw = frame.shape[:2]
+                _ignore_px = ignore_zones_px(camera.get("verify_crop") or {}, fw, fh)
                 for result in results:
                     for box in result.boxes:
                         if int(box.cls[0]) == 0:
+                            try:
+                                xyxy = box.xyxy[0].tolist()
+                            except Exception:
+                                xyxy = None
+                            if xyxy and _ignore_px and any(
+                                box_zone_overlap(xyxy, z) > 0.5 for z in _ignore_px
+                            ):
+                                continue  # người trong vùng loại trừ → bỏ qua
                             person_detected = True
                             person_count += 1
-                            best_confidence = max(best_confidence, float(box.conf[0]))
+                            conf = float(box.conf[0])
+                            if conf > best_confidence:
+                                best_confidence = conf
+                                best_box_xyxy = xyxy
                 infer_ms = (time.perf_counter() - infer_start) * 1000
 
                 if person_detected or now - last_yolo_log[index] > 10:
@@ -1104,7 +1164,22 @@ def _monitor_loop(config: dict[str, Any]) -> None:
                         verify_path = camera_snapshot_path(index)
                         cv2.imwrite(str(verify_path), frame)
                         cv2.imwrite(str(SNAPSHOT_PATH), frame)
-                        
+
+                        # Ảnh đưa AI: mặc định = full frame (verify_path). Nếu camera bật
+                        # verify_crop → crop vào người conf cao nhất + padding, lưu file
+                        # RIÊNG; log/Telegram/snapshot live vẫn dùng verify_path full.
+                        ai_input_path = verify_path
+                        crop_cfg = camera.get("verify_crop") or {}
+                        if crop_cfg.get("enabled") and best_box_xyxy is not None:
+                            cropped = crop_person_with_padding(
+                                frame, best_box_xyxy,
+                                float(crop_cfg.get("padding", 0.15)),
+                            )
+                            if cropped is not None and cropped.size > 0:
+                                crop_path = DATA_DIR / f"camera_{index}_aicrop.jpg"
+                                cv2.imwrite(str(crop_path), cropped, [cv2.IMWRITE_JPEG_QUALITY, 85])
+                                ai_input_path = crop_path
+
                         # Check if AI calls are suspended
                         if now < ai_suspended_until_ts:
                             import random
@@ -1114,7 +1189,7 @@ def _monitor_loop(config: dict[str, Any]) -> None:
                             ai_result = "SAFE"
                         else:
                             try:
-                                ai_result, ai_description, raw = verify_scene(verify_path, config, camera)
+                                ai_result, ai_description, raw = verify_scene(ai_input_path, config, camera)
                                 last_verify[index] = now
                                 set_state(last_ai_result=ai_result, last_verify_at=now_iso(), last_error="")
                                 

@@ -803,6 +803,21 @@
             <div class="row" style="font-size:.8em;color:var(--muted)">Xem trước vẽ vạch (cam) + ROI (xanh lá) + người YOLO detect (đỏ, chấm xanh=sẽ đếm). Kiểm tra vạch trúng cửa & người ngoài kính KHÔNG bị box.</div>
           </details>
         </div>
+        <div class="count-block" style="background:rgba(123,97,255,0.10);border-left-color:#7B61FF">
+          <h4><span data-icon="image"></span>Ảnh đưa AI nhận diện</h4>
+          <details class="crop-cfg">
+            <summary>⚙ Crop vào người trước khi gửi AI</summary>
+            <div class="row" style="font-size:.8em;color:var(--muted)">Cắt khung vào người (YOLO conf cao nhất) + đệm trước khi gửi AI — tránh AI hiểu nhầm màn hình/đồ ở nền. Chỉ ảnh gửi AI bị cắt; ảnh log/Telegram/snapshot live vẫn full frame.</div>
+            <div class="row"><label>Bật crop vào người</label><input type="checkbox" id="cropEnabled"></div>
+            <div class="row"><label>Đệm quanh người (%)</label><input type="number" id="cropPadding" min="0" max="100" step="5" value="15"></div>
+            <hr style="border-color:var(--border);opacity:.4;margin:.5rem 0">
+            <div class="row" style="font-size:.8em;color:var(--muted)">Vùng loại trừ: bỏ người YOLO detect trong vùng này (vd dàn TV/màn hình hiển thị người). % trên khung. Người thật chỉ chồng &lt;50% vào vùng vẫn được giữ.</div>
+            <div class="row"><label>Bật vùng loại trừ</label><input type="checkbox" id="ignEnabled"></div>
+            <div class="row"><label>X1 / Y1 (%)</label><span><input type="number" id="ignX1" min="0" max="100" value="0" style="width:64px"> <input type="number" id="ignY1" min="0" max="100" value="15" style="width:64px"></span></div>
+            <div class="row"><label>X2 / Y2 (%)</label><span><input type="number" id="ignX2" min="0" max="100" value="26" style="width:64px"> <input type="number" id="ignY2" min="0" max="100" value="52" style="width:64px"></span></div>
+            <div class="row"><button class="btn" onclick="saveCropConfig()">Lưu crop + vùng loại trừ</button></div>
+          </details>
+        </div>
         <div class="count-reset">
           <span class="k">Reset cả 2 block về số người đang trong phòng:</span>
           <input type="number" id="resetOcc" min="0" value="0" style="width:72px">
@@ -871,6 +886,19 @@
           if (cfg.roi_x2 != null && $("cfgRoiX2")) $("cfgRoiX2").value = cfg.roi_x2;
           if (cfg.roi_y2 != null && $("cfgRoiY2")) $("cfgRoiY2").value = cfg.roi_y2;
         }
+        // crop ảnh AI: padding lưu dạng fraction (0–1), UI hiển thị %
+        const ccfg = (state.camera && state.camera.verify_crop) || {};
+        const cdet = document.querySelector(".crop-cfg");
+        if (cdet && !cdet.open) {
+          if ($("cropEnabled")) $("cropEnabled").checked = !!ccfg.enabled;
+          if ($("cropPadding")) $("cropPadding").value = ccfg.padding != null ? Math.round(ccfg.padding * 100) : 15;
+          const z = (ccfg.ignore_zones || [])[0];
+          if ($("ignEnabled")) $("ignEnabled").checked = !!(ccfg.ignore_zones || []).length;
+          if (z && z.length === 4) {
+            $("ignX1").value = z[0]; $("ignY1").value = z[1];
+            $("ignX2").value = z[2]; $("ignY2").value = z[3];
+          }
+        }
       } catch (e) { /* fail-open: giữ "–" */ }
     }
     function startCountingPoll() {
@@ -912,6 +940,26 @@
         showToast("Đã lưu vạch đếm YOLO", "ok");
         if (state.camera) state.camera.yolo_counting = cfg;
       } catch (e) { showToast(e.message || "Lỗi lưu cấu hình", "bad"); }
+    }
+    async function saveCropConfig() {
+      const zones = [];
+      if ($("ignEnabled").checked) {
+        zones.push([
+          parseFloat($("ignX1").value) || 0, parseFloat($("ignY1").value) || 0,
+          parseFloat($("ignX2").value) || 0, parseFloat($("ignY2").value) || 0,
+        ]);
+      }
+      const cfg = {
+        enabled: $("cropEnabled").checked,
+        padding: (parseFloat($("cropPadding").value) || 0) / 100,  // % → fraction
+        ignore_zones: zones,
+      };
+      try {
+        await api(`/api/camera/verify-crop/${encodeURIComponent(routeCameraName)}`,
+          { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cfg) });
+        showToast("Đã lưu cấu hình crop ảnh AI", "ok");
+        if (state.camera) state.camera.verify_crop = cfg;
+      } catch (e) { showToast(e.message || "Lỗi lưu crop", "bad"); }
     }
     function previewYolo() {
       const cfg = collectYoloCfg();

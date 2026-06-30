@@ -120,7 +120,7 @@ Tuning trước đây **mù** (gõ số, chờ crossing). Thêm **preview trực
    - ⚠️ **Số 56% (§4C) CHƯA tái đo trên path live** — probe cũ ở scratchpad đã mất (session-specific). Cơ chế ROI đúng; cần đi qua vạch thật để confirm recall. Model vẫn global (chỉ imgsz per-cam).
 2. **Zone/polygon counting** thay line ngang — robust góc nghiêng.
 3. ✅ **Per-cam model/imgsz/conf DONE (2026-06-30)** — **mọi knob đếm giờ nằm trong `yolo_counting`** (dễ tuỳ chỉnh từng cam): `model`/`imgsz`/`conf` override global khi set (rỗng/0 = dùng global từ `settings`). `_counting_loop` resolve per-cam ở đầu loop. Cam khó → `yolov8s@960`, cam dễ → `yolov8n@640` tiết kiệm CPU. **Model có allowlist cứng** (`_YOLO_MODEL_ALLOWLIST` trong app.py — `YOLO(name)` nạp file nên chặn path/URL tuỳ ý; verify: `model="../../etc/passwd"` → 400). Form: dropdown model + 2 ô imgsz/conf trong block YOLO. Đổi 3 knob này vẫn cần lưu (→ `restart_counting`).
-4. **Nhập `ai_api_key`** (+ telegram token) → AI Vision verify (fall/stroke) chạy thật, hết log spam. Model vision đề xuất: `claude-opus-4-8` qua router 9router (OpenAI-compat).
+4. ✅ **AI Vision verify ĐÃ CHẠY (2026-06-30, session sau) — xem §9.** Dùng Gemini qua 9router. (Telegram token vẫn chưa nhập → alert chưa gửi.)
 5. **"Nhận diện người ngoài cty"** = face recognition (ArcFace/InsightFace + pgvector), **KHÔNG phải vision LLM** — dùng lại `services/reid_worker/` (Phase 2, shelved vì license non-commercial + cam placement). Dự án riêng.
 
 ## 8. Lệnh dev hữu ích
@@ -135,3 +135,58 @@ curl -b cookie -X POST 'http://localhost:8090/api/counting/yolo-config/Cửa cty
 # tail engine
 docker logs -f fall_detection_web 2>&1 | grep -E '\[COUNT\]|\[YOLO\]'
 ```
+
+---
+
+## 9. AI Vision verify — config + prompt + crop + vùng loại trừ (2026-06-30, session sau)
+
+Session này bật được AI Vision verify (chạy độc lập engine đếm), thêm prompt nhận diện người, và 2 cơ chế xử-lý-ảnh-trước-khi-gửi-AI (crop + vùng loại trừ).
+
+### 9.1 Kết nối 9router (OpenAI-compat proxy)
+
+- **App trong Docker → `ai_base_url` PHẢI `http://host.docker.internal:20128/v1`**, KHÔNG `localhost`. Trong container `localhost` = chính container → `Connection refused`. (Chứng minh: `host.docker.internal:20128/v1/models`→200; `localhost`→refused.)
+- 9router là **proxy gom nhiều provider**; `/v1/models` liệt **398 model** nhưng chỉ provider **đã connect creds** mới chạy — model chưa connect → `404 No active credentials for provider: X`. Dashboard 9router: `http://localhost:20128` (pass mặc định `123456`), `/api/providers`→`{connections:[]}` lúc trống. Connect provider trong dashboard (OAuth subscription hoặc API key).
+- Prefix provider: `gc/`=gemini-cli · `cc/`=claude subscription · `gh/`=github copilot · `openai/` · `anthropic/` · `ag/`=antigravity · `cu/`=cursor · `if/`/`qw/`=qwen-VL...
+- **Đang dùng:** Gemini CLI (`gc/`). Model `gc/gemini-2.5-flash` (vision OK, test ảnh thật đọc đúng giới tính/áo).
+
+### 9.2 Key config AI (3-tier env>settings>default)
+
+- **`vision_model`** (KHÔNG phải `ai_model`) = model chính. Default cũ `gh/oswe-vscode-prime` = **code model, KHÔNG vision + github chưa connect** → đổi `gc/gemini-2.5-flash`.
+- **`fallback_vision_model`** = fallback **chỉ khi model chính raise** (ai.py:251-254), KHÔNG chạy song song.
+- **`ai_api_key` BẮT BUỘC khác rỗng** — `verify_scene→require_config([...,'ai_api_key'])` raise nếu rỗng, **dù 9router không kiểm key**. Set dummy `9router-dummy`.
+- **max_tokens hardcode 1000** (ai.py:207) — đủ. ⚠️ Gemini 2.5 flash là **model thinking**, đốt `reasoning_tokens`; max_tokens nhỏ (vd 80) → output rỗng/cụt, mất keyword SAFE/EMERGENCY.
+- 9router trả **SSE stream** (`data: {...}` chunks) — `ai.py` parse sẵn (robust SSE/concat-JSON/thinking-tag). OK.
+- ⚠️ Mỗi verify ~**4.3k input tokens** (ảnh). Gemini CLI = quota subscription → bật nhiều cam đồng thời dễ nghẽn. 1 model/cam.
+
+### 9.3 Cơ chế prompt (đã có sẵn, làm rõ)
+
+- **`verify_prompt`** = prompt DEFAULT toàn cục (fall detection, ép 2 dòng SAFE/EMERGENCY). Ở Settings "Prompt xác minh mặc định".
+- **`prompts`** = list `{id,title,content}` (settings JSON). Gán per-cam qua **`cameras.prompt_id`**. Cam không gán → rơi về `verify_prompt`. Quan hệ **1 cam = 1 prompt** (prompt_id 1 giá trị). Model **global, không per-prompt**. UI: tab **Prompts** (Add prompt).
+- Thêm prompt **"Nhận diện người vào"** (id `person-id-entry`): mô tả Giới tính/Đeo kính/Áo màu, mỗi ý 1 dòng. Gán cho cam "Cửa cty HCM". ⚠️ Prompt này KHÔNG có dòng SAFE/EMERGENCY → app coi mọi cảnh SAFE → **không alert Telegram** (chuyển cam từ "phát hiện ngã" sang "nhận diện người"). Hướng/in-out KHÔNG suy ra được từ 1 ảnh tĩnh (đó là việc engine đếm line-crossing).
+
+### 9.4 `verify_crop` — cột JSONB mới trên `cameras` (feature session này)
+
+`cameras.verify_crop = {enabled, padding, ignore_zones}`. Mirror pattern `yolo_counting`. **Chỉ tác động ảnh đưa AI ở `_monitor_loop` (fall-detection verify), KHÔNG đụng engine đếm.**
+
+- **Crop vào người:** khi `enabled`, lấy bbox người **conf cao nhất** từ YOLO + **padding** (fraction của w/h bbox, clamp biên) → lưu **FILE RIÊNG** `data/camera_{i}_aicrop.jpg` chỉ đưa `verify_scene`. **`verify_path` (log incident + Telegram + snapshot live) giữ FULL frame.** Lý do tách file: tránh crop làm hỏng ảnh log/alert (advisor). Crop giúp AI đọc chi tiết (kính/giới tính) tốt hơn full-frame khi người nhỏ.
+- **`ignore_zones`** = list `[[x1,y1,x2,y2]]` **%** — bỏ box detect **overlap >50%** (`area(box∩zone)/area(box)`) với vùng. Áp **ngay sau `model.predict`, trước khi set person_detected/count/best_box** → vùng-chỉ-có-TV → `person_detected=False` → **không verify, không crop**. Giải false-positive **người hiển thị trên TV/màn hình** (cam này có dàn TV mép trái). Rule **overlap-fraction (không center-point)**: người thật chồng <50% vào vùng vẫn GIỮ.
+
+**Files đụng:** `db.py` (cột `verify_crop` JSONB + `set_verify_crop`), `config.py` (`cameras_from_table` đọc `verify_crop`), `monitor.py` (`crop_person_with_padding`/`box_zone_overlap`/`ignore_zones_px` + filter trong `_monitor_loop`), `app.py` (`POST /api/camera/verify-crop/{name}`), `camera_detail.html` (block "Ảnh đưa AI nhận diện").
+
+**Verify (đo thật, cùng 1 frame, imgsz 1280/conf 0.25 để TV bị detect):** người-trong-TV box overlap **100%** zone `[0,15,26,52]%` → BỎ; người thật giữa cửa overlap **0%** → GIỮ. Integration: TV-only frame → `person_detected=False`. HTTP endpoint 200, persist DB OK.
+
+### 9.5 Config LIVE AI (cam "Cửa cty HCM", 2026-06-30)
+
+- `vision_model = gc/gemini-2.5-flash` · `ai_base_url = http://host.docker.internal:20128/v1` · `ai_api_key = 9router-dummy`
+- `cameras.prompt_id = person-id-entry` (prompt "Nhận diện người vào")
+- `cameras.verify_crop = {enabled:true, padding:0.15, ignore_zones:[[0,15,26,52]]}` (vùng = dàn TV mép trái)
+
+### 9.6 Quan trọng — bộ đôi vùng-loại-trừ × tuning detect
+
+Global detect `imgsz=640/conf=0.5` **MISS người xa** (live `people=0` dù có người ở cửa) → verify/crop KHÔNG trigger. Vùng loại trừ TV cho phép **mạnh tay tăng `yolo_imgsz` (960-1280) + giảm `confidence` (~0.3)** để bắt người thật xa mà KHÔNG sợ TV bắn false-positive. ⚠️ Caveat hình học: người thật **đứng che trực tiếp trước TV** (>50% box trong vùng) có thể bị bỏ — chấp nhận với cam cửa.
+
+### 9.7 Còn lại
+
+- Nhập **Telegram token** → alert gửi thật.
+- Cân nhắc **preview vẽ `ignore_zones`** lên frame (như `counting_preview` §6c) để đặt vùng trực quan thay gõ số.
+- Tuning `yolo_imgsz`/`confidence` cho cam này (xem §9.6) — chưa làm.

@@ -332,6 +332,7 @@ def cameras_from_table(config: dict[str, Any]) -> list[dict[str, Any]]:
         cam = {
             "id": r.get("id"),
             "yolo_counting": dict(r.get("yolo_counting") or {}),
+            "verify_crop": dict(r.get("verify_crop") or {}),
             "cam_uid": r.get("cam_uid"),
             "enabled": _bool_default_true(r.get("enabled")),
             "name": str(r.get("name", "")).strip() or f"Camera {r.get('id')}",

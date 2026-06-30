@@ -1,0 +1,4 @@
+fall_detection_web-1  | INFO:     192.168.181.1:36702 - "GET /api/counting/camera/C%E1%BB%ADa%20cty%20HCM HTTP/1.1" 200 OK
+fall_detection_web-1  | INFO:     192.168.181.1:49304 - "POST /api/counting/yolo-config/C%E1%BB%ADa%20cty%20HCM HTTP/1.1" 200 OK
+fall_detection_web-1  | INFO:     192.168.181.1:36702 - "GET /api/counting/camera/C%E1%BB%ADa%20cty%20HCM HTTP/1.1" 200 OK
+
