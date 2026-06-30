@@ -1278,13 +1278,29 @@ def _counting_loop(camera: dict[str, Any], line_cfg: dict[str, Any]) -> None:
     min_disp_pct = float(line_cfg.get("min_disp", 6))
     invert = bool(line_cfg.get("invert", False))
 
+    # ROI zoom-zone (cam choke xa): crop vùng ROI trước detect → người chiếm tỉ lệ
+    # lớn hơn của imgsz = recall cao hơn. line_y/x_start/x_end khi BẬT ROI = % TRONG ROI.
+    roi_enabled = bool(line_cfg.get("roi_enabled", False))
+    roi_x1 = float(line_cfg.get("roi_x1", 0))
+    roi_y1 = float(line_cfg.get("roi_y1", 0))
+    roi_x2 = float(line_cfg.get("roi_x2", 100))
+    roi_y2 = float(line_cfg.get("roi_y2", 100))
+    # imgsz per-cam (đòn bẩy thật cho choke xa): override global khi có. cv2-upscale
+    # bỏ đi cố ý — YOLO letterbox về imgsz nên upscale thủ công là no-op.
+    try:
+        track_imgsz = int(line_cfg["imgsz"]) if line_cfg.get("imgsz") else imgsz
+    except (TypeError, ValueError):
+        track_imgsz = imgsz
+
     track_sides: dict[int, str] = {}
     cap = cv2.VideoCapture(rtsp_url)
     cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
     consecutive_failures = 0
     last_reconnect_log = 0.0
-    logger.info("[COUNT] start camera=%s line_y=%.0f%% x=[%.0f,%.0f]%% min_disp=%.0f%% invert=%s",
-                cam_name, line_y_pct, x_start, x_end, min_disp_pct, invert)
+    logger.info("[COUNT] start camera=%s line_y=%.0f%% x=[%.0f,%.0f]%% min_disp=%.0f%% invert=%s "
+                "imgsz=%d roi=%s",
+                cam_name, line_y_pct, x_start, x_end, min_disp_pct, invert, track_imgsz,
+                ("[%.0f,%.0f,%.0f,%.0f]" % (roi_x1, roi_y1, roi_x2, roi_y2)) if roi_enabled else "off")
     try:
         while not counting_stop_event.is_set():
             ok, frame = cap.read()
@@ -1303,12 +1319,24 @@ def _counting_loop(camera: dict[str, Any], line_cfg: dict[str, Any]) -> None:
                 continue
             consecutive_failures = 0
 
-            h, w = frame.shape[:2]
+            # ROI: detect trên vùng crop; line-crossing tính theo toạ độ crop.
+            det_frame = frame
+            if roi_enabled:
+                H, W = frame.shape[:2]
+                rx1, rx2 = sorted((int(roi_x1 / 100.0 * W), int(roi_x2 / 100.0 * W)))
+                ry1, ry2 = sorted((int(roi_y1 / 100.0 * H), int(roi_y2 / 100.0 * H)))
+                rx1, ry1 = max(0, rx1), max(0, ry1)
+                rx2, ry2 = min(W, rx2), min(H, ry2)
+                crop = frame[ry1:ry2, rx1:rx2]
+                if crop.size:
+                    det_frame = crop
+
+            h, w = det_frame.shape[:2]
             y_line = line_y_pct / 100.0 * h
             band = min_disp_pct / 100.0 * h
 
-            results = model.track(frame, persist=True, classes=[0], conf=conf,
-                                  imgsz=imgsz, verbose=False)
+            results = model.track(det_frame, persist=True, classes=[0], conf=conf,
+                                  imgsz=track_imgsz, verbose=False)
             seen_ids: set[int] = set()
             for result in results:
                 boxes = result.boxes

@@ -777,6 +777,12 @@
             <div class="row"><label>Đoạn X kết thúc (%)</label><input type="number" id="cfgXEnd" min="0" max="100" value="71"></div>
             <div class="row"><label>Dịch chuyển tối thiểu (%)</label><input type="number" id="cfgMinDisp" min="0" max="30" value="6"></div>
             <div class="row"><label>Đảo chiều (xuống=Ra)</label><input type="checkbox" id="cfgInvert"></div>
+            <div class="row"><label>imgsz (0=dùng global)</label><input type="number" id="cfgImgsz" min="0" max="1920" step="32" value="0"></div>
+            <hr style="border-color:var(--border);opacity:.4;margin:.5rem 0">
+            <div class="row"><label>ROI zoom-zone (cam choke xa)</label><input type="checkbox" id="cfgRoiEnabled"></div>
+            <div class="row" style="font-size:.8em;color:var(--muted)">Khi bật: vạch Y & đoạn X tính theo % TRONG ROI. Đặt vạch nằm trong ROI (y1&lt;line_y&lt;y2).</div>
+            <div class="row"><label>ROI X1 / Y1 (%)</label><span><input type="number" id="cfgRoiX1" min="0" max="100" value="40" style="width:64px"> <input type="number" id="cfgRoiY1" min="0" max="100" value="5" style="width:64px"></span></div>
+            <div class="row"><label>ROI X2 / Y2 (%)</label><span><input type="number" id="cfgRoiX2" min="0" max="100" value="80" style="width:64px"> <input type="number" id="cfgRoiY2" min="0" max="100" value="50" style="width:64px"></span></div>
             <div class="row"><button class="btn" onclick="saveYoloConfig()">Lưu vạch</button></div>
           </details>
         </div>
@@ -839,6 +845,12 @@
           if (cfg.x_end != null && $("cfgXEnd")) $("cfgXEnd").value = cfg.x_end;
           if (cfg.min_disp != null && $("cfgMinDisp")) $("cfgMinDisp").value = cfg.min_disp;
           if ($("cfgInvert")) $("cfgInvert").checked = !!cfg.invert;
+          if ($("cfgImgsz")) $("cfgImgsz").value = cfg.imgsz != null ? cfg.imgsz : 0;
+          if ($("cfgRoiEnabled")) $("cfgRoiEnabled").checked = !!cfg.roi_enabled;
+          if (cfg.roi_x1 != null && $("cfgRoiX1")) $("cfgRoiX1").value = cfg.roi_x1;
+          if (cfg.roi_y1 != null && $("cfgRoiY1")) $("cfgRoiY1").value = cfg.roi_y1;
+          if (cfg.roi_x2 != null && $("cfgRoiX2")) $("cfgRoiX2").value = cfg.roi_x2;
+          if (cfg.roi_y2 != null && $("cfgRoiY2")) $("cfgRoiY2").value = cfg.roi_y2;
         }
       } catch (e) { /* fail-open: giữ "–" */ }
     }
@@ -863,6 +875,12 @@
         x_end: parseFloat($("cfgXEnd").value),
         min_disp: parseFloat($("cfgMinDisp").value),
         invert: $("cfgInvert").checked,
+        imgsz: parseInt($("cfgImgsz").value || "0", 10) || 0,
+        roi_enabled: $("cfgRoiEnabled").checked,
+        roi_x1: parseFloat($("cfgRoiX1").value),
+        roi_y1: parseFloat($("cfgRoiY1").value),
+        roi_x2: parseFloat($("cfgRoiX2").value),
+        roi_y2: parseFloat($("cfgRoiY2").value),
       };
       try {
         await api(`/api/counting/yolo-config/${encodeURIComponent(routeCameraName)}`,

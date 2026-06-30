@@ -267,6 +267,26 @@ def api_counting_yolo_config(camera_name: str, payload: dict[str, Any] = Body(..
         "min_disp": _pct("min_disp", 6),
         "invert": bool(payload.get("invert", False)),
     }
+
+    # ROI zoom-zone (tuỳ chọn) — crop vùng choke xa trước detect. Khi BẬT, line_y/x_start/x_end
+    # diễn giải theo % TRONG ROI. roi_y1 < line_y < roi_y2 nếu không sẽ 0 crossing (xem doc §3).
+    roi_enabled = bool(payload.get("roi_enabled", False))
+    if roi_enabled:
+        roi_x1, roi_x2 = _pct("roi_x1", 0), _pct("roi_x2", 100)
+        roi_y1, roi_y2 = _pct("roi_y1", 0), _pct("roi_y2", 100)
+        if roi_x1 >= roi_x2 or roi_y1 >= roi_y2:
+            raise HTTPException(status_code=400, detail="ROI không hợp lệ: x1<x2 và y1<y2")
+        cfg.update({"roi_enabled": True, "roi_x1": roi_x1, "roi_y1": roi_y1,
+                    "roi_x2": roi_x2, "roi_y2": roi_y2})
+
+    # imgsz per-cam (đòn bẩy recall cho choke xa) — override global khi >0.
+    raw_imgsz = payload.get("imgsz")
+    if raw_imgsz not in (None, "", 0, "0"):
+        try:
+            cfg["imgsz"] = max(64, min(1920, int(raw_imgsz)))
+        except (TypeError, ValueError):
+            pass
+
     db.set_yolo_counting(cam_id, cfg)
     monitor.restart_counting(config.read_config())
     return {"ok": True, "yolo_counting": cfg}

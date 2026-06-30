@@ -105,9 +105,11 @@ ROI crop+3x thấy người Ở CỬA : 56%   (+13%)
 
 ## 7. Việc còn lại / quyết định mở
 
-1. **(ưu tiên) ROI zoom-zone per-cam** — thêm config `{roi_x1,roi_y1,roi_x2,roi_y2,upscale}`, `_counting_loop` crop+resize vùng đó trước `model.track` → đếm choke xa. Đúng pain point "cam không detect người xa".
+1. ✅ **ROI zoom-zone per-cam (DONE 2026-06-30)** — config `yolo_counting` thêm `{roi_enabled,roi_x1,roi_y1,roi_x2,roi_y2,imgsz}`. `_counting_loop` crop vùng ROI trước `model.track`; **line-crossing tính theo toạ độ CROP** → khi bật ROI, `line_y`/`x_start`/`x_end` = **% TRONG ROI** (đặt vạch trong ROI: `roi_y1<line_y<roi_y2`, nếu không → 0 crossing, lặp lại bẫy y=38 §3). Snapshot vẫn lưu **full frame** (context). Form trong block YOLO + validate API (`x1<x2 && y1<y2`). Backward-compat: roi off = byte-identical path cũ. Verify: rebuild + restart → engine boot `imgsz=960 roi=[40,5,80,50]`, loop chạy không crash; revert về baseline (imgsz=0, roi off) tránh peg CPU.
+   - ⚠️ **`upscale` thủ công ĐÃ BỎ (cố ý).** YOLO letterbox input về `imgsz` trước inference → cv2-upscale crop rồi YOLO co lại = no-op, chỉ tốn CPU. **Đòn bẩy thật = `imgsz` so với kích thước crop**, nên expose **per-cam `imgsz`** (0=dùng global) thay vì upscale factor — knob này sống tới network. Gộp luôn §7.3 (phần imgsz).
+   - ⚠️ **Số 56% (§4C) CHƯA tái đo trên path live** — probe cũ ở scratchpad đã mất (session-specific). Cơ chế ROI đúng; cần đi qua vạch thật để confirm recall. Model vẫn global (chỉ imgsz per-cam).
 2. **Zone/polygon counting** thay line ngang — robust góc nghiêng.
-3. **Per-cam model/imgsz** — cam khó dùng s@960, cam dễ dùng n@640 (tiết kiệm CPU). Hiện model/imgsz/conf là global.
+3. ✅ **Per-cam imgsz DONE** (cùng item 1). ⬜ **Per-cam model** vẫn chưa (cam khó dùng `s`, cam dễ dùng `n`) — `yolo_model` còn global.
 4. **Nhập `ai_api_key`** (+ telegram token) → AI Vision verify (fall/stroke) chạy thật, hết log spam. Model vision đề xuất: `claude-opus-4-8` qua router 9router (OpenAI-compat).
 5. **"Nhận diện người ngoài cty"** = face recognition (ArcFace/InsightFace + pgvector), **KHÔNG phải vision LLM** — dùng lại `services/reid_worker/` (Phase 2, shelved vì license non-commercial + cam placement). Dự án riêng.
 
