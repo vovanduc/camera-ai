@@ -98,10 +98,10 @@ ROI crop+3x thấy người Ở CỬA : 56%   (+13%)
 
 ## 6. Config LIVE hiện tại (cam "Cửa cty HCM")
 
-- `cameras.yolo_counting = {enabled:true, line_y:52, x_start:30, x_end:80, min_disp:6, invert:false}` (model/imgsz/conf rỗng → dùng global)
-- `settings.confidence = 0.3`, `settings.yolo_imgsz = 640`, `yolo_model = yolov8n.pt` (global default; per-cam override trong `yolo_counting`)
-- Engine chạy (đã restart). Chờ người đi qua dải y=52% → ghi `counter_yolo` + thumbnail cột phải.
-- ⚠️ Probe offline dùng yolov8s/960 OK, nhưng **full-FPS live nặng CPU** — live nên giữ n@640, hoặc giảm FPS xử lý.
+- `cameras.yolo_counting = {enabled:true, line_y:50, x_start:38, x_end:72, min_disp:6, invert:false, model:yolov8s.pt, imgsz:640, conf:0.3}` — **vạch canh TRÙNG vạch Axis** (preview: vạch xanh nằm khít giữa 2 icon ↓/↑ Axis ở ~y50% giữa phòng — vạch Axis KHÔNG ở cửa kính như tưởng ban đầu; ảnh "người ở cửa" chỉ do latency fetch snapshot).
+- `settings` global default: `confidence=0.3, yolo_imgsz=640, yolo_model=yolov8n.pt` (per-cam override thắng).
+- ⚠️ **BUG đã fix (9d194cf):** commit preview (41caf46) chèn `_build_yolo_cfg` giữa `@app.post` và handler → route `/api/counting/yolo-config` trỏ nhầm `_build_yolo_cfg` → **mọi lần lưu vạch no-op** (DB không đổi, engine không restart). Triệu chứng: POST trả raw cfg (không wrapper `{ok}`). Lưu vạch không ăn → kiểm decorator này.
+- ⚠️ yolov8s@640 full-FPS nặng CPU hơn n@640 — theo dõi; nóng thì hạ model/FPS.
 
 ## 6b. Chẩn đoán Axis-vs-YOLO không khớp (2026-06-30, từ data + ảnh thật)
 
